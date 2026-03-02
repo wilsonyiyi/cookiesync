@@ -28,6 +28,44 @@ chrome.runtime.onConnect.addListener(port => {
     });
 });
 
+async function manualSyncCookies() {
+    try {
+        const allCookies = await chrome.cookies.getAll({});
+        
+        for (const cookie of allCookies) {
+            if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
+                try {
+                    await chrome.cookies.set({
+                        url: "http://localhost",
+                        name: cookie.name,
+                        value: cookie.value,
+                        domain: "localhost",
+                        path: cookie.path,
+                        secure: cookie.secure,
+                        httpOnly: cookie.httpOnly,
+                        sameSite: cookie.sameSite,
+                        expirationDate: cookie.expirationDate
+                    });
+                } catch (setError) {
+                    console.warn(`Failed to set cookie ${cookie.name}:`, setError);
+                }
+            }
+        }
+        
+        console.log(`Manual sync completed. Processed ${allCookies.length} cookies.`);
+    } catch (error) {
+        console.error('Error during manual sync:', error);
+    }
+}
+
+// 监听来自popup的消息，处理手动同步请求
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.manualSync) {
+        manualSyncCookies();
+        return true; // 表示会异步发送响应
+    }
+});
+
 chrome.cookies.onChanged.addListener((changeInfo) => {
     console.log("CookieSync: onChanged");
     const cookie = changeInfo.cookie;

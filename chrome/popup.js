@@ -27,4 +27,26 @@ window.onload= function() {
         v = txarea.value.trim()
         myPort.postMessage({updateRegexNames: v});
     }
+
+    const syncButton = document.getElementById('syncButton');
+    if (syncButton) {
+        syncButton.addEventListener('click', async function() {
+            try {
+                chrome.runtime.sendMessage({manualSync: true});
+                
+                const originalText = syncButton.textContent;
+                syncButton.textContent = 'Syncing...';
+                syncButton.disabled = true;
+
+                setTimeout(() => {
+                    syncButton.textContent = originalText;
+                    syncButton.disabled = false;
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error triggering manual sync:', error);
+                document.querySelector("#warning").innerText = "Sync failed: " + error.message;
+            }
+        });
+    }
 }
