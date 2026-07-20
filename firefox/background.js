@@ -1,7 +1,7 @@
 var defaultHost = ".*\\.mycompany\\.com";
 var defaultNames = ["sessionid.*"].join('\n')
 
-var host;
+var hostsArray = [];
 var namesArray = [];
 
 function updateRegexpes(save) {
@@ -12,7 +12,7 @@ function updateRegexpes(save) {
     });
 
     browser.storage.local.get("regexHost", function (res) {
-        host = (res.regexHost || defaultHost);
+        hostsArray = (res.regexHost || defaultHost).split("\n");
         register();
     });
 }
@@ -66,7 +66,12 @@ function doesCookieNameMatch(name) {
 }
 
 function doesCookieHostMatch(cookiehost) {
-    return cookiehost.match(host);
+    for (var regex of hostsArray) {
+        if (regex && cookiehost.match(regex)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 updateRegexpes();

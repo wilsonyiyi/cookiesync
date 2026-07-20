@@ -1,7 +1,7 @@
 var defaultHost = ".*\\.mycompany\\.com";
 var defaultNames = ["sessionid.*"].join('\n');
 
-var host;
+var hostsArray = [];
 var namesArray = [];
 
 async function updateRegexpes() {
@@ -10,7 +10,7 @@ async function updateRegexpes() {
         chrome.storage.local.get("regexHost")
     ]);
     namesArray = (regexNames.regexNames || defaultNames).split("\n");
-    host = regexHost.regexHost || defaultHost;
+    hostsArray = (regexHost.regexHost || defaultHost).split("\n");
 }
 
 chrome.runtime.onConnect.addListener(port => {
@@ -84,7 +84,7 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
 });
 
 function doesCookieHostMatch(cookiehost) {
-    return new RegExp(host).test(cookiehost);
+    return hostsArray.some(regex => regex && new RegExp(regex).test(cookiehost));
 }
 
 function doesCookieNameMatch(name) {

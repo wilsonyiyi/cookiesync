@@ -17,9 +17,9 @@ chrome.storage.local.get("regexHost", function(res) {
 });
 
 window.onload= function() {
-    input = document.querySelector(".regexhost");
-    input.onkeyup = input.onchange = function(){
-        v = input.value.trim()
+    txarea = document.querySelector(".regexhost");
+    txarea.onkeyup = txarea.onchange = function(){
+        v = txarea.value.trim()
         myPort.postMessage({updateHost: v});
     }
     txarea = document.querySelector(".regexnames");
