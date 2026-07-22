@@ -17,14 +17,14 @@ browser.storage.local.get("regexHost", function(res) {
 });
 
 window.onload= function() {
-    txarea = document.querySelector(".regexhost");
-    txarea.onkeyup = txarea.onchange = function(){
-        v = txarea.value.trim()
+    var hostArea = document.querySelector(".regexhost");
+    hostArea.onkeyup = hostArea.onchange = function(){
+        v = hostArea.value.trim()
         myPort.postMessage({updateHost: v});
     }
-    txarea = document.querySelector(".regexnames");
-    txarea.onkeyup = txarea.onchange = function(){
-        v = txarea.value.trim()
+    var namesArea = document.querySelector(".regexnames");
+    namesArea.onkeyup = namesArea.onchange = function(){
+        v = namesArea.value.trim()
         myPort.postMessage({updateRegexNames: v});
     }
 }
