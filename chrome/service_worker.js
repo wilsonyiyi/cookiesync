@@ -28,57 +28,77 @@ chrome.runtime.onConnect.addListener(port => {
     });
 });
 
+function toLocalhostCookie(cookie) {
+    const details = {
+        url: "http://localhost",
+        name: cookie.name,
+        value: cookie.value,
+        path: cookie.path || "/",
+        httpOnly: cookie.httpOnly,
+        secure: false
+    };
+    if (cookie.sameSite && cookie.sameSite !== "unspecified") {
+        details.sameSite = cookie.sameSite === "no_restriction" ? "lax" : cookie.sameSite;
+    }
+    if (cookie.expirationDate) {
+        details.expirationDate = cookie.expirationDate;
+    }
+    return details;
+}
+
+async function copyCookieToLocalhost(cookie) {
+    const result = await chrome.cookies.set(toLocalhostCookie(cookie));
+    if (!result) {
+        throw new Error(chrome.runtime.lastError?.message || `cookies.set returned empty for ${cookie.name}`);
+    }
+    return result;
+}
+
 async function manualSyncCookies() {
-    try {
-        const allCookies = await chrome.cookies.getAll({});
-        
-        for (const cookie of allCookies) {
-            if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
-                try {
-                    await chrome.cookies.set({
-                        url: "http://localhost",
-                        name: cookie.name,
-                        value: cookie.value,
-                        domain: "localhost",
-                        path: cookie.path,
-                        secure: cookie.secure,
-                        httpOnly: cookie.httpOnly,
-                        sameSite: cookie.sameSite,
-                        expirationDate: cookie.expirationDate
-                    });
-                } catch (setError) {
-                    console.warn(`Failed to set cookie ${cookie.name}:`, setError);
-                }
+    const allCookies = await chrome.cookies.getAll({});
+    let copied = 0;
+    let failed = 0;
+
+    for (const cookie of allCookies) {
+        if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
+            try {
+                await copyCookieToLocalhost(cookie);
+                copied += 1;
+            } catch (setError) {
+                failed += 1;
+                console.warn(`Failed to set cookie ${cookie.name}:`, setError);
             }
         }
-        
-        console.log(`Manual sync completed. Processed ${allCookies.length} cookies.`);
-    } catch (error) {
-        console.error('Error during manual sync:', error);
     }
+
+    console.log(`Manual sync completed. Copied ${copied}, failed ${failed}, scanned ${allCookies.length}.`);
+    return {copied, failed};
 }
 
 // 监听来自popup的消息，处理手动同步请求
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.manualSync) {
-        manualSyncCookies();
-        return true; // 表示会异步发送响应
+        manualSyncCookies()
+            .then((result) => sendResponse(result))
+            .catch((error) => {
+                console.error('Error during manual sync:', error);
+                sendResponse({copied: 0, failed: 0, error: error.message});
+            });
+        return true;
     }
 });
 
 chrome.cookies.onChanged.addListener((changeInfo) => {
-    console.log("CookieSync: onChanged");
+    if (changeInfo.removed) {
+        return;
+    }
     const cookie = changeInfo.cookie;
+    if (cookie.domain === "localhost" || cookie.domain === ".localhost") {
+        return;
+    }
     if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
-        chrome.cookies.set({
-            url: "http://localhost",
-            name: cookie.name,
-            value: cookie.value,
-            domain: "localhost",
-            path: cookie.path,
-            secure: cookie.secure,
-            httpOnly: cookie.httpOnly,
-            sameSite: cookie.sameSite
+        copyCookieToLocalhost(cookie).catch((setError) => {
+            console.warn(`Failed to set cookie ${cookie.name}:`, setError);
         });
     }
 });

@@ -30,23 +30,28 @@ window.onload= function() {
 
     const syncButton = document.getElementById('syncButton');
     if (syncButton) {
-        syncButton.addEventListener('click', async function() {
-            try {
-                chrome.runtime.sendMessage({manualSync: true});
-                
-                const originalText = syncButton.textContent;
-                syncButton.textContent = 'Syncing...';
-                syncButton.disabled = true;
+        syncButton.addEventListener('click', function() {
+            const originalText = syncButton.textContent;
+            syncButton.textContent = 'Syncing...';
+            syncButton.disabled = true;
+            document.querySelector("#warning").innerText = "";
 
+            chrome.runtime.sendMessage({manualSync: true}, function(result) {
+                syncButton.textContent = originalText;
+                syncButton.disabled = false;
+                if (chrome.runtime.lastError) {
+                    document.querySelector("#warning").innerText = chrome.runtime.lastError.message;
+                    return;
+                }
+                if (!result || result.error) {
+                    document.querySelector("#warning").innerText = (result && result.error) || "Sync failed";
+                    return;
+                }
+                syncButton.textContent = `Synced ${result.copied}`;
                 setTimeout(() => {
                     syncButton.textContent = originalText;
-                    syncButton.disabled = false;
                 }, 2000);
-                
-            } catch (error) {
-                console.error('Error triggering manual sync:', error);
-                document.querySelector("#warning").innerText = "Sync failed: " + error.message;
-            }
+            });
         });
     }
 }
