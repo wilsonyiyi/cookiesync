@@ -1,4 +1,4 @@
-var defaultHost = ".*\\.mycompany\\.com";
+var defaultHost = ".*\\.example\\.com";
 var defaultNames = ["sessionid.*"].join('\n');
 
 var hostsArray = [];

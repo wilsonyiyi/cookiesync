@@ -1,0 +1,34 @@
+name: Build Chrome Extension Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Package chrome extension
+        run: |
+          cd chrome
+          zip -r ../cookiesync-chrome.zip . -x "*.DS_Store"
+
+      - name: Publish fixed release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: cookiesync-chrome.zip
+          body: Latest build from the main branch.
+          name: Latest Main Build
+          prerelease: true
+          replacesArtifacts: true
+          tag: latest-main
