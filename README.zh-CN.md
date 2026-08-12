@@ -26,7 +26,7 @@ CookieSync 是一个面向开发者的 Chrome 扩展，用于解决 localhost �
 ## 界面预览
 
 <p align="center">
-  <img src="chrome/screenshot.png" width="400" alt="CookieSync Chrome 扩展界面">
+  <img src="chrome/readme-preview-v2.png" width="400" alt="CookieSync Chrome 扩展界面">
 </p>
 
 ## 功能特性

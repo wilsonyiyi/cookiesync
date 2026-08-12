@@ -26,7 +26,7 @@ The extension supports both automatic synchronization when matching cookies chan
 ## Screenshot
 
 <p align="center">
-  <img src="chrome/screenshot.png" width="400" alt="CookieSync Chrome extension popup">
+  <img src="chrome/readme-preview-v2.png" width="400" alt="CookieSync Chrome extension popup">
 </p>
 
 ## Features
