@@ -1,4 +1,4 @@
-name: Build Chrome Extension Release
+name: Release
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   release:
@@ -15,20 +17,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Package chrome extension
-        run: |
-          cd chrome
-          zip -r ../cookiesync-chrome.zip . -x "*.DS_Store"
-
-      - name: Publish fixed release
-        uses: ncipollo/release-action@v1
         with:
-          allowUpdates: true
-          artifactErrorsFailBuild: true
-          artifacts: cookiesync-chrome.zip
-          body: Latest build from the main branch.
-          name: Latest Main Build
-          prerelease: true
-          replacesArtifacts: true
-          tag: latest-main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release

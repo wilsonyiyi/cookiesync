@@ -178,13 +178,33 @@ The Chrome extension is contained in the [<code>chrome</code>](chrome) directory
 
 There is no build step. Load the <code>chrome</code> directory as an unpacked extension and reload it after changes.
 
+The popup footer shows the current version in the bottom-right corner. It is read from <code>chrome/manifest.json</code> at runtime. CI keeps <code>package.json</code>, the manifest, and the popup fallback in sync when a release is published.
+
+### Release
+
+Pushing to <code>main</code> triggers GitHub Actions. <code>semantic-release</code> inspects [Conventional Commits](https://www.conventionalcommits.org/) since the last tag and publishes only when the commits include a releasable change:
+
+| Commit type | Version bump |
+|---|---|
+| <code>fix:</code> | patch (<code>2.1.0</code> → <code>2.1.1</code>) |
+| <code>feat:</code> | minor (<code>2.1.0</code> → <code>2.2.0</code>) |
+| <code>BREAKING CHANGE</code> or <code>feat!:</code> | major (<code>2.1.0</code> → <code>3.0.0</code>) |
+
+A release updates <code>CHANGELOG.md</code>, syncs the version into <code>chrome/manifest.json</code> and the popup, creates a git tag, and uploads <code>cookiesync-chrome.zip</code> to the GitHub Release. Commits such as <code>docs:</code> or <code>chore:</code> do not publish a new version.
+
+Preview the next version locally without publishing:
+
+~~~bash
+npm install
+npm run release:dry
+~~~
+
 ### Package the extension
 
 Run from the repository root:
 
 ~~~bash
-cd chrome
-zip -r -FS ../cookiesync-chrome.zip . -x "*.DS_Store"
+npm run package
 ~~~
 
 ## Credits and fork history

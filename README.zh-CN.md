@@ -178,13 +178,33 @@ Chrome 扩展源码位于 [<code>chrome</code>](chrome) 目录：
 
 项目没有构建步骤。开发时直接加载 <code>chrome</code> 目录，修改后重新加载扩展即可。
 
+Popup 右下角会显示当前版本。运行时从 <code>chrome/manifest.json</code> 读取。CI 在发版时会同步 <code>package.json</code>、manifest 和 Popup 中的版本号。
+
+### 发布
+
+推送到 <code>main</code> 后，GitHub Actions 会自动发版。<code>semantic-release</code> 会检查距上一 tag 的 [Conventional Commits](https://www.conventionalcommits.org/)，只有包含可发版变更时才会发布：
+
+| Commit 类型 | 版本变化 |
+|---|---|
+| <code>fix:</code> | patch（<code>2.1.0</code> → <code>2.1.1</code>） |
+| <code>feat:</code> | minor（<code>2.1.0</code> → <code>2.2.0</code>） |
+| <code>BREAKING CHANGE</code> 或 <code>feat!:</code> | major（<code>2.1.0</code> → <code>3.0.0</code>） |
+
+发版会更新 <code>CHANGELOG.md</code>，把版本同步到 <code>chrome/manifest.json</code> 和 Popup，打 git tag，并把 <code>cookiesync-chrome.zip</code> 上传到 GitHub Release。<code>docs:</code>、<code>chore:</code> 这类 commit 不会发布新版本。
+
+本地预览下一版本、不实际发布：
+
+~~~bash
+npm install
+npm run release:dry
+~~~
+
 ### 打包扩展
 
 在仓库根目录执行：
 
 ~~~bash
-cd chrome
-zip -r -FS ../cookiesync-chrome.zip . -x "*.DS_Store"
+npm run package
 ~~~
 
 ## 致谢与 Fork 来源

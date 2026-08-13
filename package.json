@@ -1,0 +1,24 @@
+{
+  "name": "cookiesync",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Sync selected cookies from remote domains to localhost",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "package": "cd chrome && zip -r -FS ../cookiesync-chrome.zip . -x '*.DS_Store'",
+    "sync-version": "node scripts/sync-version.js",
+    "release": "semantic-release",
+    "release:dry": "semantic-release --dry-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wilsonyiyi/cookiesync.git"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "devDependencies": {
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^11.0.1",
+    "semantic-release": "^25.0.9"
+  }
+}
