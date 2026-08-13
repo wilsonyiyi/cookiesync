@@ -1,6 +1,6 @@
 {
   "name": "cookiesync",
-  "version": "2.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Sync selected cookies from remote domains to localhost",
   "scripts": {
