@@ -77,35 +77,32 @@ a:focus-visible {
     line-height: 18px;
 }
 
-.language-button {
-    display: inline-flex;
-    width: auto;
+.settings-button {
+    display: grid;
+    width: 34px;
     height: 34px;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: var(--space-1);
-    padding: 0 10px;
+    flex: 0 0 34px;
+    place-items: center;
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
     color: #475467;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
 }
 
-.language-button:hover {
+.settings-button:hover {
     border-color: var(--color-border-hover);
+    color: var(--color-text-primary);
 }
 
-.language-button svg {
-    width: 14px;
-    height: 14px;
+.settings-button svg {
+    width: 18px;
+    height: 18px;
     fill: none;
     stroke: currentColor;
     stroke-linecap: round;
     stroke-linejoin: round;
-    stroke-width: 2;
+    stroke-width: 1.8;
 }
 
 .status-card {
@@ -383,25 +380,27 @@ a:focus-visible {
 
 .sync-button {
     display: flex;
+    flex-direction: column;
     width: 100%;
-    height: 48px;
+    min-height: 52px;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 1px;
     margin-top: var(--space-4);
-    padding: 0 16px;
+    padding: 8px 16px;
     border: 0;
-    border-radius: var(--radius-md);
-    background: var(--color-brand-gradient);
-    box-shadow: 0 4px 12px rgba(82, 109, 245, 0.22);
+    border-radius: 10px;
+    background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
     color: #fff;
     cursor: pointer;
+    text-align: center;
     transition: filter 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .sync-button:hover {
     filter: brightness(0.96);
-    box-shadow: 0 6px 16px rgba(82, 109, 245, 0.28);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.32);
 }
 
 .sync-button:active {
@@ -415,9 +414,9 @@ a:focus-visible {
 }
 
 .sync-icon {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 20px;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
     fill: none;
     stroke: currentColor;
     stroke-linecap: round;
@@ -425,54 +424,135 @@ a:focus-visible {
     stroke-width: 1.9;
 }
 
-.sync-button.is-syncing .sync-icon {
-    animation: spin 0.8s linear infinite;
-}
-
-.sync-button-copy {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+.sync-button-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .sync-button-label {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 20px;
 }
 
 .sync-button-subtitle {
     font-size: 11px;
+    font-weight: 400;
     line-height: 16px;
-    opacity: 0.82;
+    opacity: 0.92;
 }
 
-.app-footer {
+.settings-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    overflow: auto;
+    background: var(--color-surface);
+}
+
+.settings-overlay[hidden] {
+    display: none;
+}
+
+.settings-panel {
+    min-height: 100%;
+    padding: 16px 20px 20px;
+}
+
+.settings-header {
     display: flex;
-    min-height: 34px;
-    align-items: flex-end;
-    justify-content: space-between;
-    margin-top: 14px;
-    padding: 10px 2px 0;
-    border-top: 1px solid #eaecf0;
-}
-
-.app-footer a {
-    display: inline-flex;
     align-items: center;
-    gap: 7px;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.settings-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+}
+
+.settings-close {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
     color: #475467;
-    text-decoration: none;
-    font-size: 12px;
+    cursor: pointer;
 }
 
-.app-footer a:hover {
-    color: var(--color-primary);
+.settings-close:hover {
+    background: #f2f4f7;
+    color: var(--color-text-primary);
 }
 
-.app-footer svg {
-    width: 17px;
-    height: 17px;
+.settings-close svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.settings-section {
+    padding: 16px 0 4px;
+}
+
+.settings-section:first-of-type {
+    margin-top: 12px;
+}
+
+.settings-section h3 {
+    margin: 0 0 10px;
+    color: #475467;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
+}
+
+.settings-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--color-text-primary);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.language-field {
+    position: relative;
+}
+
+.language-select {
+    display: flex;
+    width: 100%;
+    height: 42px;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    text-align: left;
+}
+
+.language-select:hover {
+    border-color: var(--color-border-hover);
+}
+
+.language-select svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
     fill: none;
     stroke: currentColor;
     stroke-linecap: round;
@@ -480,12 +560,169 @@ a:focus-visible {
     stroke-width: 1.8;
 }
 
-.app-footer .footer-chevron {
-    width: 14px;
-    height: 14px;
+.language-select #langLabel {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
 }
 
-.footer-meta {
+.language-select .language-chevron {
+    width: 16px;
+    height: 16px;
+    color: var(--color-text-secondary);
+}
+
+.language-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    z-index: 2;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-popover);
+}
+
+.language-menu[hidden] {
+    display: none;
+}
+
+.language-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+}
+
+.language-menu button:hover,
+.language-menu button.is-selected {
+    background: #f8fafc;
+}
+
+.settings-card {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.settings-card:first-of-type {
+    margin-top: 0;
+}
+
+.settings-card:hover {
+    border-color: var(--color-border-hover);
+}
+
+.settings-card-icon {
+    display: grid;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    place-items: center;
+}
+
+.settings-card-icon--import {
+    color: var(--color-primary);
+}
+
+.settings-card-icon--export {
+    color: var(--color-purple);
+}
+
+.settings-card-icon svg,
+.settings-card .settings-chevron,
+.settings-row svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.settings-card-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.settings-card-copy span:first-child {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
+}
+
+.settings-card-copy span:last-child {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    line-height: 16px;
+}
+
+.settings-chevron {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    color: var(--color-text-tertiary);
+}
+
+.settings-row {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    text-decoration: none;
+}
+
+.settings-section > .settings-row:first-child,
+.settings-section > h3 + .settings-row {
+    margin-top: 0;
+}
+
+a.settings-row:hover {
+    border-color: var(--color-border-hover);
+    color: var(--color-primary);
+}
+
+.settings-row > svg:first-child {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    color: #475467;
+}
+
+.settings-row-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+}
+
+.settings-row-meta {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -495,7 +732,7 @@ a:focus-visible {
     display: inline-flex;
     align-items: center;
     color: var(--color-text-tertiary);
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
     user-select: none;
 }
@@ -515,7 +752,9 @@ a:focus-visible {
     animation: spin 0.7s linear infinite;
 }
 
-.app-footer .update-button {
+.update-button {
+    display: inline-flex;
+    align-items: center;
     padding: 2px 10px;
     border-radius: 999px;
     background: #d8f5e5;
@@ -523,14 +762,14 @@ a:focus-visible {
     font-size: 11px;
     font-weight: 600;
     line-height: 18px;
-    gap: 0;
+    text-decoration: none;
 }
 
-.app-footer .update-button[hidden] {
+.update-button[hidden] {
     display: none !important;
 }
 
-.app-footer .update-button:hover {
+.update-button:hover {
     background: #c5eed8;
     color: #14784e;
 }

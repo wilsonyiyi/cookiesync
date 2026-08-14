@@ -37,6 +37,38 @@ var CookieSyncForm = (function() {
         }
     }
 
+    function buildSharePayload(data) {
+        var form = pickForm(data);
+        return {
+            app: "cookiesync",
+            version: 1,
+            regexHost: form.regexHost,
+            regexNames: form.regexNames
+        };
+    }
+
+    function parseSharePayload(raw) {
+        var payload = raw;
+        if (typeof raw === "string") {
+            try {
+                payload = JSON.parse(raw);
+            } catch (error) {
+                return null;
+            }
+        }
+        if (!payload || payload.app !== "cookiesync" || payload.version !== 1) {
+            return null;
+        }
+        var form = pickForm(payload);
+        if (!hasFormValues(form)) {
+            return null;
+        }
+        return {
+            regexHost: form.regexHost,
+            regexNames: form.regexNames
+        };
+    }
+
     function getStorage(storageApi) {
         return storageApi || chrome.storage.local;
     }
@@ -100,6 +132,8 @@ var CookieSyncForm = (function() {
         hasFormValues: hasFormValues,
         serializeForm: serializeForm,
         parseForm: parseForm,
+        buildSharePayload: buildSharePayload,
+        parseSharePayload: parseSharePayload,
         loadForm: loadForm,
         saveForm: saveForm
     };

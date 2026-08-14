@@ -18,7 +18,7 @@ var translations = {
         nameDescription: "Only sync matching cookie names (regex supported)",
         onePerLine: "One regular expression per line",
         syncNow: "Sync Now",
-        syncSubtitle: "Copy matching cookies to localhost",
+        syncSubtitle: "Copy matching cookies to http://localhost",
         syncing: "Syncing...",
         syncingSubtitle: "Finding matching cookies",
         synced: "Synced {count} cookies",
@@ -41,11 +41,25 @@ var translations = {
         oneCookieFailed: "1 cookie failed",
         viewDetails: "View details",
         howItWorks: "How it works",
+        settings: "Settings",
+        openSettings: "Open settings",
+        closeSettings: "Close settings",
+        settingsGeneral: "General",
+        settingsConfiguration: "Configuration",
+        settingsAbout: "About",
+        language: "Language",
+        languageEn: "English",
+        languageZh: "中文 (简体)",
+        exportConfigTitle: "Export configuration",
+        exportConfigDesc: "Download current settings as JSON",
+        importConfigTitle: "Import configuration",
+        importConfigDesc: "Import settings from a JSON file",
+        exportDone: "Config exported",
+        importDone: "Config imported",
+        importFailed: "This file is not a CookieSync config.",
         update: "Update",
         checkForUpdate: "Check for updates",
-        checkingUpdate: "Checking for updates",
-        langToggle: "中文",
-        switchLanguage: "切换到中文"
+        checkingUpdate: "Checking for updates"
     },
     zh: {
         subtitle: "将 Cookie 同步到 localhost",
@@ -55,7 +69,7 @@ var translations = {
         nameDescription: "仅同步名称匹配的 Cookie（支持正则）",
         onePerLine: "每行填写一条正则表达式",
         syncNow: "立即同步",
-        syncSubtitle: "将匹配的 Cookie 复制到 localhost",
+        syncSubtitle: "将匹配的 Cookie 复制到 http://localhost",
         syncing: "同步中...",
         syncingSubtitle: "正在查找匹配的 Cookie",
         synced: "已同步 {count} 个 Cookie",
@@ -78,11 +92,25 @@ var translations = {
         oneCookieFailed: "1 个 Cookie 失败",
         viewDetails: "查看详情",
         howItWorks: "工作原理",
+        settings: "设置",
+        openSettings: "打开设置",
+        closeSettings: "关闭设置",
+        settingsGeneral: "通用",
+        settingsConfiguration: "配置",
+        settingsAbout: "关于",
+        language: "语言",
+        languageEn: "English",
+        languageZh: "中文 (简体)",
+        exportConfigTitle: "导出配置",
+        exportConfigDesc: "将当前设置下载为 JSON",
+        importConfigTitle: "导入配置",
+        importConfigDesc: "从 JSON 文件导入设置",
+        exportDone: "配置已导出",
+        importDone: "配置已导入",
+        importFailed: "这不是有效的 CookieSync 配置文件。",
         update: "更新",
         checkForUpdate: "检查更新",
-        checkingUpdate: "正在检查更新",
-        langToggle: "English",
-        switchLanguage: "Switch to English"
+        checkingUpdate: "正在检查更新"
     }
 };
 
@@ -161,14 +189,15 @@ function applyLanguage(language) {
         howItWorksLink.href = howItWorksUrls[currentLanguage] || howItWorksUrls.en;
     }
 
-    var langLabel = document.getElementById("langLabel");
-    var langToggle = document.getElementById("langToggle");
-    if (langLabel) {
-        langLabel.textContent = t("langToggle");
+    var settingsButton = document.getElementById("settingsButton");
+    var settingsClose = document.getElementById("settingsClose");
+    if (settingsButton) {
+        settingsButton.setAttribute("aria-label", t("openSettings"));
     }
-    if (langToggle) {
-        langToggle.setAttribute("aria-label", t("switchLanguage"));
+    if (settingsClose) {
+        settingsClose.setAttribute("aria-label", t("closeSettings"));
     }
+    renderLanguageSelect();
 
     renderButton();
     renderStatus();
@@ -181,13 +210,31 @@ function setLanguage(language) {
     CookieSyncForm.saveForm({[languageKey]: currentLanguage});
 }
 
-function setWarning(message) {
-    var warning = document.getElementById("warning");
-    if (!warning) {
-        return;
+function renderLanguageSelect() {
+    var langLabel = document.getElementById("langLabel");
+    var langToggle = document.getElementById("langToggle");
+    if (langLabel) {
+        langLabel.textContent = currentLanguage === "zh" ? t("languageZh") : t("languageEn");
     }
-    warning.textContent = message || "";
-    warning.classList.toggle("is-visible", Boolean(message));
+    if (langToggle) {
+        langToggle.setAttribute("aria-label", t("language"));
+    }
+    document.querySelectorAll("[data-lang]").forEach(function(option) {
+        var selected = option.getAttribute("data-lang") === currentLanguage;
+        option.setAttribute("aria-selected", selected ? "true" : "false");
+        option.classList.toggle("is-selected", selected);
+    });
+}
+
+function setWarning(message) {
+    ["warning", "settingsWarning"].forEach(function(id) {
+        var warning = document.getElementById(id);
+        if (!warning) {
+            return;
+        }
+        warning.textContent = message || "";
+        warning.classList.toggle("is-visible", Boolean(message));
+    });
 }
 
 function renderButton() {
@@ -198,8 +245,13 @@ function renderButton() {
         return;
     }
 
-    syncButton.classList.toggle("is-syncing", buttonState.type === "syncing");
     syncButton.disabled = buttonState.type === "syncing";
+    var icon = syncButton.querySelector(".sync-icon");
+    if (icon) {
+        icon.innerHTML = buttonState.type === "success"
+            ? '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>'
+            : '<path d="M21 12a9 9 0 1 1-3.2-6.8L21 8"/><path d="M21 3v5h-5"/>';
+    }
 
     if (buttonState.type === "syncing") {
         label.textContent = t("syncing");
@@ -328,6 +380,155 @@ function setupEditor(options) {
     updateEditorMeta(textarea, countNode, lineNumbers);
 }
 
+function readVisibleForm() {
+    var host = document.getElementById("regexhost");
+    var names = document.getElementById("regexnames");
+    return {
+        regexHost: host ? host.value.trim() : "",
+        regexNames: names ? names.value.trim() : ""
+    };
+}
+
+function fillEditor(textareaId, countId, lineNumbersId, value) {
+    var textarea = document.getElementById(textareaId);
+    if (!textarea) {
+        return;
+    }
+    textarea.value = value || "";
+    updateEditorMeta(
+        textarea,
+        document.getElementById(countId),
+        document.getElementById(lineNumbersId)
+    );
+    textarea.dispatchEvent(new Event("input"));
+}
+
+function exportConfig() {
+    var payload = CookieSyncForm.buildSharePayload(readVisibleForm());
+    var blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = "cookiesync-config.json";
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function importConfigFile(file) {
+    if (!file) {
+        return;
+    }
+    var reader = new FileReader();
+    reader.onload = function() {
+        var form = CookieSyncForm.parseSharePayload(String(reader.result || ""));
+        if (!form) {
+            setWarning(t("importFailed"));
+            return;
+        }
+        setWarning("");
+        fillEditor("regexhost", "hostCount", "hostLineNumbers", form.regexHost);
+        fillEditor("regexnames", "nameCount", "nameLineNumbers", form.regexNames);
+        CookieSyncForm.saveForm(form);
+        setSettingsOpen(false);
+    };
+    reader.readAsText(file);
+}
+
+function setupShareActions() {
+    var exportButton = document.getElementById("exportButton");
+    var importButton = document.getElementById("importButton");
+    var importFile = document.getElementById("importFile");
+    if (!exportButton || !importButton || !importFile) {
+        return;
+    }
+    exportButton.addEventListener("click", exportConfig);
+    importButton.addEventListener("click", function() {
+        importFile.click();
+    });
+    importFile.addEventListener("change", function() {
+        importConfigFile(importFile.files && importFile.files[0]);
+        importFile.value = "";
+    });
+}
+
+function isSettingsOpen() {
+    var overlay = document.getElementById("settingsOverlay");
+    return Boolean(overlay && !overlay.hidden);
+}
+
+function setLangMenuOpen(open) {
+    var menu = document.getElementById("langMenu");
+    var toggle = document.getElementById("langToggle");
+    if (!menu || !toggle) {
+        return;
+    }
+    menu.hidden = !open;
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function setSettingsOpen(open) {
+    var overlay = document.getElementById("settingsOverlay");
+    var button = document.getElementById("settingsButton");
+    var closeButton = document.getElementById("settingsClose");
+    if (!overlay || !button) {
+        return;
+    }
+    overlay.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+    setLangMenuOpen(false);
+    if (open && closeButton) {
+        closeButton.focus();
+        return;
+    }
+    if (!open) {
+        button.focus();
+    }
+}
+
+function setupSettingsPanel() {
+    var overlay = document.getElementById("settingsOverlay");
+    var openButton = document.getElementById("settingsButton");
+    var closeButton = document.getElementById("settingsClose");
+    var langToggle = document.getElementById("langToggle");
+    var langMenu = document.getElementById("langMenu");
+    if (!overlay || !openButton || !closeButton || !langToggle || !langMenu) {
+        return;
+    }
+
+    openButton.addEventListener("click", function() {
+        setSettingsOpen(true);
+    });
+    closeButton.addEventListener("click", function() {
+        setSettingsOpen(false);
+    });
+    langToggle.addEventListener("click", function() {
+        setLangMenuOpen(langMenu.hidden);
+    });
+    langMenu.querySelectorAll("[data-lang]").forEach(function(option) {
+        option.addEventListener("click", function() {
+            setLanguage(option.getAttribute("data-lang"));
+            setLangMenuOpen(false);
+        });
+    });
+    document.addEventListener("click", function(event) {
+        if (!langToggle.contains(event.target) && !langMenu.contains(event.target)) {
+            setLangMenuOpen(false);
+        }
+    });
+    document.addEventListener("keydown", function(event) {
+        if (event.key === "Escape") {
+            if (!langMenu.hidden) {
+                setLangMenuOpen(false);
+                langToggle.focus();
+                return;
+            }
+            if (isSettingsOpen()) {
+                setSettingsOpen(false);
+            }
+        }
+    });
+}
+
 function runManualSync() {
     if (buttonResetTimer) {
         clearTimeout(buttonResetTimer);
@@ -444,6 +645,7 @@ function initialize() {
             initialValue: form.regexNames,
             port: port
         });
+        setupShareActions();
 
         chrome.storage.local.get([lastSyncKey], function(result) {
             var browserLanguage = chrome.i18n && chrome.i18n.getUILanguage
@@ -460,10 +662,7 @@ function initialize() {
         });
     });
 
-    var langToggle = document.getElementById("langToggle");
-    langToggle.addEventListener("click", function() {
-        setLanguage(currentLanguage === "zh" ? "en" : "zh");
-    });
+    setupSettingsPanel();
 
     document.getElementById("syncButton").addEventListener("click", runManualSync);
 

@@ -87,3 +87,25 @@ test("saveForm writes both storage and backup cookie", async () => {
   assert.equal(formCache.parseForm(cookies.getValue()).regexHost, "new.com");
   assert.equal(formCache.parseForm(cookies.getValue()).regexNames, "old");
 });
+
+test("builds and parses a shareable config file", () => {
+  const payload = formCache.buildSharePayload({
+    regexHost: ".*\\.corp\\.com",
+    regexNames: "^sid$\n^token$",
+    preferredLanguage: "zh"
+  });
+
+  assert.equal(payload.app, "cookiesync");
+  assert.equal(payload.version, 1);
+  assert.equal(payload.preferredLanguage, undefined);
+  assert.deepEqual(formCache.parseSharePayload(JSON.stringify(payload)), {
+    regexHost: ".*\\.corp\\.com",
+    regexNames: "^sid$\n^token$"
+  });
+});
+
+test("rejects invalid share files", () => {
+  assert.equal(formCache.parseSharePayload("{"), null);
+  assert.equal(formCache.parseSharePayload({app: "other", version: 1, regexHost: "a.com"}), null);
+  assert.equal(formCache.parseSharePayload({app: "cookiesync", version: 1, regexHost: "", regexNames: ""}), null);
+});
