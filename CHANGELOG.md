@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.3.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.2.0...v1.3.0) (2026-08-14)
+
+
+### Features
+
+* **settings:** add share payload functionality and enhance settings UI ([b4ee4e4](https://github.com/wilsonyiyi/cookiesync/commit/b4ee4e4063ca838706ab00979666911163352229))
+
 # [1.2.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.1.0...v1.2.0) (2026-08-14)
 
 
