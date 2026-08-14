@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.5.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.4.0...v1.5.0) (2026-08-14)
+
+
+### Features
+
+* **form-cache:** enhance form backup and restore functionality ([a3d4d56](https://github.com/wilsonyiyi/cookiesync/commit/a3d4d565e6cf951e98bc75d7a8e2caa6679bb304))
+
 # [1.4.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.3.0...v1.4.0) (2026-08-14)
 
 
