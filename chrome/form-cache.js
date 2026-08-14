@@ -3,7 +3,38 @@ var CookieSyncForm = (function() {
     var COOKIE_URL = "http://localhost";
     var STORAGE_KEY = "cookiesync_form";
     var KEYS = ["regexHost", "regexNames", "preferredLanguage"];
-    var LOCALHOST_TAB_URLS = ["http://localhost/*", "http://localhost:*/*"];
+
+    function isLocalhostUrl(url) {
+        if (!url) {
+            return false;
+        }
+        try {
+            var parsed = new URL(url);
+            return parsed.protocol === "http:" && parsed.hostname === "localhost";
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function isInjectableTab(tab) {
+        if (!tab || !tab.id || tab.discarded) {
+            return false;
+        }
+        var url = tab.url || tab.pendingUrl || "";
+        if (
+            url.indexOf("chrome-error://") === 0 ||
+            url.indexOf("chrome://") === 0 ||
+            url.indexOf("about:") === 0
+        ) {
+            return false;
+        }
+        return isLocalhostUrl(url);
+    }
+
+    function isIgnorableInjectError(error) {
+        var message = error && error.message ? String(error.message) : String(error || "");
+        return /error page|No tab with id|cannot be scripted|Frame with ID/i.test(message);
+    }
 
     function hasFormValues(data) {
         return Boolean(
@@ -93,15 +124,69 @@ var CookieSyncForm = (function() {
         if (!chrome.tabs || !chrome.tabs.query) {
             return [];
         }
-        return chrome.tabs.query({url: LOCALHOST_TAB_URLS});
+        try {
+            var tabs = await chrome.tabs.query({url: ["http://*/*", "http://localhost/*"]});
+            return tabs.filter(isInjectableTab);
+        } catch (error) {
+            console.warn("CookieSync query localhost tabs failed:", error);
+            return [];
+        }
     }
 
     async function sendTabMessage(tabId, message) {
+        if (!chrome.tabs || !chrome.tabs.sendMessage) {
+            return null;
+        }
         try {
             return await chrome.tabs.sendMessage(tabId, message);
         } catch (error) {
             return null;
         }
+    }
+
+    async function writeTabBackup(tabId, value) {
+        if (chrome.scripting && chrome.scripting.executeScript) {
+            try {
+                await chrome.scripting.executeScript({
+                    target: {tabId: tabId},
+                    world: "ISOLATED",
+                    func: function(key, nextValue) {
+                        if (nextValue == null || nextValue === "") {
+                            localStorage.removeItem(key);
+                        } else {
+                            localStorage.setItem(key, nextValue);
+                        }
+                    },
+                    args: [STORAGE_KEY, value]
+                });
+                return;
+            } catch (error) {
+                if (!isIgnorableInjectError(error)) {
+                    console.warn("CookieSync executeScript backup failed:", tabId, error);
+                }
+            }
+        }
+        await sendTabMessage(tabId, {setFormBackup: value});
+    }
+
+    async function readTabBackup(tabId) {
+        if (chrome.scripting && chrome.scripting.executeScript) {
+            try {
+                var results = await chrome.scripting.executeScript({
+                    target: {tabId: tabId},
+                    world: "ISOLATED",
+                    func: function(key) {
+                        return localStorage.getItem(key);
+                    },
+                    args: [STORAGE_KEY]
+                });
+                if (results && results[0] && results[0].result) {
+                    return results[0].result;
+                }
+            } catch (error) {}
+        }
+        var response = await sendTabMessage(tabId, {getFormBackup: true});
+        return response && response.value;
     }
 
     async function readLegacyCookie() {
@@ -131,19 +216,26 @@ var CookieSyncForm = (function() {
         async read() {
             var tabs = await queryLocalhostTabs();
             for (var index = 0; index < tabs.length; index += 1) {
-                var response = await sendTabMessage(tabs[index].id, {getFormBackup: true});
-                var parsed = parseBackup(response && response.value);
+                var parsed = parseBackup(await readTabBackup(tabs[index].id));
                 if (hasFormValues(parsed)) {
                     return parsed;
                 }
             }
             return readLegacyCookie();
         },
-        async write(data) {
+        async write(data, tabId) {
             var value = hasFormValues(data) ? serializeBackup(data) : null;
+            var written = {};
+            if (tabId) {
+                await writeTabBackup(tabId, value);
+                written[tabId] = true;
+            }
             var tabs = await queryLocalhostTabs();
             await Promise.all(tabs.map(function(tab) {
-                return sendTabMessage(tab.id, {setFormBackup: value});
+                if (written[tab.id]) {
+                    return null;
+                }
+                return writeTabBackup(tab.id, value);
             }));
             await clearLegacyCookie();
         },
@@ -156,9 +248,9 @@ var CookieSyncForm = (function() {
         return backupApi || chromeBackup;
     }
 
-    async function persistBackup(data, backup) {
+    async function persistBackup(data, backup, tabId) {
         if (hasFormValues(data)) {
-            await backup.write(data);
+            await backup.write(data, tabId);
         }
         if (backup.clearLegacyCookie) {
             await backup.clearLegacyCookie();
@@ -198,12 +290,12 @@ var CookieSyncForm = (function() {
         return next;
     }
 
-    async function applyIncomingBackup(rawValue, storageApi, backupApi) {
+    async function applyIncomingBackup(rawValue, storageApi, backupApi, tabId) {
         var backup = getBackupApi(backupApi);
         var storage = getStorage(storageApi);
         var stored = pickForm(await storage.get(KEYS));
         if (hasFormValues(stored)) {
-            await persistBackup(stored, backup);
+            await persistBackup(stored, backup, tabId);
             return {form: stored, restored: false};
         }
         var incoming = parseBackup(rawValue);
@@ -212,7 +304,7 @@ var CookieSyncForm = (function() {
         }
         if (hasFormValues(incoming)) {
             await storage.set(incoming);
-            await persistBackup(incoming, backup);
+            await persistBackup(incoming, backup, tabId);
             return {form: incoming, restored: true};
         }
         if (backup.clearLegacyCookie) {
@@ -226,6 +318,8 @@ var CookieSyncForm = (function() {
         COOKIE_URL: COOKIE_URL,
         STORAGE_KEY: STORAGE_KEY,
         KEYS: KEYS,
+        isLocalhostUrl: isLocalhostUrl,
+        isInjectableTab: isInjectableTab,
         hasFormValues: hasFormValues,
         serializeForm: serializeForm,
         parseForm: parseForm,

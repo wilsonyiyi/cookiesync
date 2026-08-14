@@ -12,7 +12,9 @@
   "permissions": [
     "storage",
     "cookies",
-    "alarms"
+    "alarms",
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "*://*/*"
@@ -30,8 +32,7 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost/*",
-        "http://localhost:*/*"
+        "http://localhost/*"
       ],
       "js": [
         "form-backup.js"

@@ -41,6 +41,21 @@ function mockBackup(initialValue) {
   };
 }
 
+test("skips error pages and discarded tabs", () => {
+  assert.equal(formCache.isInjectableTab({id: 1, url: "http://localhost:9002/app"}), true);
+  assert.equal(formCache.isInjectableTab({id: 1, url: "http://localhost:9002/app", discarded: true}), false);
+  assert.equal(formCache.isInjectableTab({id: 1, url: "chrome-error://chromewebdata/"}), false);
+  assert.equal(formCache.isInjectableTab({id: 1, url: "chrome://newtab/"}), false);
+});
+
+test("identifies localhost page URLs", () => {
+  assert.equal(formCache.isLocalhostUrl("http://localhost/"), true);
+  assert.equal(formCache.isLocalhostUrl("http://localhost:3000/app"), true);
+  assert.equal(formCache.isLocalhostUrl("https://localhost/"), false);
+  assert.equal(formCache.isLocalhostUrl("http://127.0.0.1:3000/"), false);
+  assert.equal(formCache.isLocalhostUrl("https://example.com/"), false);
+});
+
 test("serializes and parses JSON localStorage backups", () => {
   const encoded = formCache.serializeBackup({
     regexHost: ".*\\.foo\\.com",

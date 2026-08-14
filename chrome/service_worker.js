@@ -143,14 +143,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
     if (Object.prototype.hasOwnProperty.call(message, "formBackup")) {
-        CookieSyncForm.applyIncomingBackup(message.formBackup)
+        var tabId = sender && sender.tab && sender.tab.id;
+        CookieSyncForm.applyIncomingBackup(message.formBackup, null, null, tabId)
             .then((result) => {
                 if (result.restored) {
                     return updateRegexpes().then(() => result);
                 }
                 return result;
             })
-            .then((result) => sendResponse({ok: true, restored: result.restored}))
+            .then((result) => sendResponse({
+                ok: true,
+                restored: result.restored,
+                value: CookieSyncForm.hasFormValues(result.form)
+                    ? CookieSyncForm.serializeBackup(result.form)
+                    : null
+            }))
             .catch((error) => sendResponse({ok: false, error: error.message}));
         return true;
     }
@@ -181,6 +188,21 @@ function doesCookieHostMatch(cookiehost) {
 function doesCookieNameMatch(name) {
     return namesArray.some(regex => new RegExp(regex).test(name));
 }
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+    if (changeInfo.status !== "complete" || !CookieSyncForm.isLocalhostUrl(tab && tab.url)) {
+        return;
+    }
+    CookieSyncForm.applyIncomingBackup(null, null, null, tab.id)
+        .then((result) => {
+            if (result.restored) {
+                return updateRegexpes();
+            }
+        })
+        .catch((error) => {
+            console.warn("CookieSync form backup sync failed:", error);
+        });
+});
 
 updateRegexpes();
 

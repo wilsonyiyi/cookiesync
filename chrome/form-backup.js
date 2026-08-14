@@ -18,8 +18,13 @@ function writeValue(value) {
     } catch (error) {}
 }
 
-chrome.runtime.sendMessage({formBackup: readValue()}, function() {
-    void chrome.runtime.lastError;
+chrome.runtime.sendMessage({formBackup: readValue()}, function(response) {
+    if (chrome.runtime.lastError) {
+        return;
+    }
+    if (response && response.value) {
+        writeValue(response.value);
+    }
 });
 
 chrome.runtime.onMessage.addListener(function(message, _sender, sendResponse) {
