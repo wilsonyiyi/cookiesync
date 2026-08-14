@@ -1,4 +1,5 @@
 importScripts("update-check.js");
+importScripts("form-cache.js");
 
 var defaultHost = ".*\\.example\\.com";
 var defaultNames = ["sessionid.*"].join('\n');
@@ -7,12 +8,9 @@ var hostsArray = [];
 var namesArray = [];
 
 async function updateRegexpes() {
-    const [regexNames, regexHost] = await Promise.all([
-        chrome.storage.local.get("regexNames"),
-        chrome.storage.local.get("regexHost")
-    ]);
-    namesArray = (regexNames.regexNames || defaultNames).split("\n");
-    hostsArray = (regexHost.regexHost || defaultHost).split("\n");
+    const form = await CookieSyncForm.loadForm();
+    namesArray = (form.regexNames || defaultNames).split("\n");
+    hostsArray = (form.regexHost || defaultHost).split("\n");
 }
 
 chrome.runtime.onConnect.addListener(port => {
@@ -20,11 +18,11 @@ chrome.runtime.onConnect.addListener(port => {
     port.onMessage.addListener(async (m) => {
         console.log("CookieSync: onMessage");
         if (m.updateHost) {
-            await chrome.storage.local.set({"regexHost": m.updateHost});
+            await CookieSyncForm.saveForm({regexHost: m.updateHost});
             updateRegexpes();
         }
         if (m.updateRegexNames) {
-            await chrome.storage.local.set({"regexNames": m.updateRegexNames});
+            await CookieSyncForm.saveForm({regexNames: m.updateRegexNames});
             updateRegexpes();
         }
     });
@@ -62,6 +60,9 @@ async function manualSyncCookies() {
     let failed = 0;
 
     for (const cookie of allCookies) {
+        if (cookie.name === CookieSyncForm.COOKIE_NAME) {
+            continue;
+        }
         if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
             try {
                 await copyCookieToLocalhost(cookie);
@@ -148,6 +149,9 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
         return;
     }
     const cookie = changeInfo.cookie;
+    if (cookie.name === CookieSyncForm.COOKIE_NAME) {
+        return;
+    }
     if (cookie.domain === "localhost" || cookie.domain === ".localhost") {
         return;
     }

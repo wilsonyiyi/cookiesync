@@ -119,6 +119,35 @@ var howItWorksUrls = {
     zh: "https://github.com/wilsonyiyi/cookiesync/blob/main/README.zh-CN.md#%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"
 };
 
+function getInstalledVersion() {
+    var manifest = chrome.runtime.getManifest ? chrome.runtime.getManifest() : null;
+    return manifest && manifest.version ? manifest.version : "";
+}
+
+function renderVersionChecking() {
+    var versionNode = document.getElementById("version");
+    if (!versionNode) {
+        return;
+    }
+    versionNode.classList.toggle("is-checking", updateCheckInFlight);
+    versionNode.setAttribute("aria-busy", updateCheckInFlight ? "true" : "false");
+    versionNode.setAttribute("aria-label", t(updateCheckInFlight ? "checkingUpdate" : "checkForUpdate"));
+}
+
+function renderUpdateLink() {
+    var link = document.getElementById("updateLink");
+    if (!link) {
+        return;
+    }
+    if (!CookieSyncUpdate.hasVisibleUpdate(updateState, getInstalledVersion())) {
+        link.hidden = true;
+        link.removeAttribute("href");
+        return;
+    }
+    link.href = updateState.releaseUrl;
+    link.hidden = false;
+}
+
 function applyLanguage(language) {
     currentLanguage = normalizeLanguage(language);
     document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
@@ -149,7 +178,7 @@ function applyLanguage(language) {
 
 function setLanguage(language) {
     applyLanguage(language);
-    chrome.storage.local.set({[languageKey]: currentLanguage});
+    CookieSyncForm.saveForm({[languageKey]: currentLanguage});
 }
 
 function setWarning(message) {
@@ -293,10 +322,10 @@ function setupEditor(options) {
         lineNumbers.scrollTop = textarea.scrollTop;
     });
 
-    chrome.storage.local.get(options.storageKey, function(result) {
-        textarea.value = result[options.storageKey] || options.defaultValue;
-        updateEditorMeta(textarea, countNode, lineNumbers);
-    });
+    textarea.value = options.initialValue != null && options.initialValue !== ""
+        ? options.initialValue
+        : options.defaultValue;
+    updateEditorMeta(textarea, countNode, lineNumbers);
 }
 
 function runManualSync() {
@@ -345,25 +374,6 @@ function runManualSync() {
     });
 }
 
-function renderUpdateLink() {
-    var link = document.getElementById("updateLink");
-    if (!link) {
-        return;
-    }
-    if (!CookieSyncUpdate.hasVisibleUpdate(updateState, getInstalledVersion())) {
-        link.hidden = true;
-        link.removeAttribute("href");
-        return;
-    }
-    link.href = updateState.releaseUrl;
-    link.hidden = false;
-}
-
-function getInstalledVersion() {
-    var manifest = chrome.runtime.getManifest ? chrome.runtime.getManifest() : null;
-    return manifest && manifest.version ? manifest.version : "";
-}
-
 function applyStoredUpdate(cache) {
     var currentVersion = getInstalledVersion();
     if (!cache || cache.currentVersion !== CookieSyncUpdate.normalizeVersion(currentVersion)) {
@@ -373,16 +383,6 @@ function applyStoredUpdate(cache) {
     }
     updateState = cache;
     renderUpdateLink();
-}
-
-function renderVersionChecking() {
-    var versionNode = document.getElementById("version");
-    if (!versionNode) {
-        return;
-    }
-    versionNode.classList.toggle("is-checking", updateCheckInFlight);
-    versionNode.setAttribute("aria-busy", updateCheckInFlight ? "true" : "false");
-    versionNode.setAttribute("aria-label", t(updateCheckInFlight ? "checkingUpdate" : "checkForUpdate"));
 }
 
 function checkForUpdate(force) {
@@ -423,23 +423,41 @@ function initialize() {
         setWarning(message.message);
     });
 
-    setupEditor({
-        textareaId: "regexhost",
-        countId: "hostCount",
-        lineNumbersId: "hostLineNumbers",
-        storageKey: "regexHost",
-        messageKey: "updateHost",
-        defaultValue: defaultHost,
-        port: port
-    });
-    setupEditor({
-        textareaId: "regexnames",
-        countId: "nameCount",
-        lineNumbersId: "nameLineNumbers",
-        storageKey: "regexNames",
-        messageKey: "updateRegexNames",
-        defaultValue: defaultNames,
-        port: port
+    CookieSyncForm.loadForm().then(function(form) {
+        setupEditor({
+            textareaId: "regexhost",
+            countId: "hostCount",
+            lineNumbersId: "hostLineNumbers",
+            storageKey: "regexHost",
+            messageKey: "updateHost",
+            defaultValue: defaultHost,
+            initialValue: form.regexHost,
+            port: port
+        });
+        setupEditor({
+            textareaId: "regexnames",
+            countId: "nameCount",
+            lineNumbersId: "nameLineNumbers",
+            storageKey: "regexNames",
+            messageKey: "updateRegexNames",
+            defaultValue: defaultNames,
+            initialValue: form.regexNames,
+            port: port
+        });
+
+        chrome.storage.local.get([lastSyncKey], function(result) {
+            var browserLanguage = chrome.i18n && chrome.i18n.getUILanguage
+                ? chrome.i18n.getUILanguage()
+                : navigator.language;
+            if (result[lastSyncKey] && (result[lastSyncKey].type === "success" || result[lastSyncKey].type === "error")) {
+                syncState = result[lastSyncKey];
+                if (syncState.type === "error" && syncState.error) {
+                    setWarning(syncState.error);
+                }
+            }
+            applyLanguage(form.preferredLanguage || browserLanguage);
+            checkForUpdate();
+        });
     });
 
     var langToggle = document.getElementById("langToggle");
@@ -462,20 +480,6 @@ function initialize() {
         if (area === "local" && changes[CookieSyncUpdate.STORAGE_KEY]) {
             applyStoredUpdate(changes[CookieSyncUpdate.STORAGE_KEY].newValue);
         }
-    });
-
-    chrome.storage.local.get([languageKey, lastSyncKey], function(result) {
-        var browserLanguage = chrome.i18n && chrome.i18n.getUILanguage
-            ? chrome.i18n.getUILanguage()
-            : navigator.language;
-        if (result[lastSyncKey] && (result[lastSyncKey].type === "success" || result[lastSyncKey].type === "error")) {
-            syncState = result[lastSyncKey];
-            if (syncState.type === "error" && syncState.error) {
-                setWarning(syncState.error);
-            }
-        }
-        applyLanguage(result[languageKey] || browserLanguage);
-        checkForUpdate();
     });
 
     setInterval(function() {

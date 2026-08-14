@@ -139,7 +139,7 @@ test("popup loads the update checker next to the version label", () => {
   const css = fs.readFileSync(path.join(__dirname, "../chrome/popup.css"), "utf8");
   const script = fs.readFileSync(path.join(__dirname, "../chrome/popup.js"), "utf8");
   assert.match(popup, /<span id="version" class="version">v[\d.]+<\/span>/);
-  assert.match(popup, /<script src="update-check.js"><\/script>/);
+  assert.match(popup, /<script src="form-cache.js"><\/script>/);
   assert.match(popup, /id="updateLink" class="update-button" hidden/);
   assert.match(popup, /data-i18n="update"/);
   assert.match(css, /\.version\.is-checking::after/);
