@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.4.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.3.0...v1.4.0) (2026-08-14)
+
+
+### Features
+
+* **form-backup:** implement localStorage backup for form values ([1520a1c](https://github.com/wilsonyiyi/cookiesync/commit/1520a1c3ca86f92db6c52fb0718be5a7b0a474cf))
+
 # [1.3.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.2.0...v1.3.0) (2026-08-14)
 
 
