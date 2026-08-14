@@ -19,23 +19,43 @@ function mockStorage(initial) {
   };
 }
 
-function mockCookies(initialValue) {
+function mockBackup(initialValue) {
   let value = initialValue || null;
+  let legacyCleared = false;
   return {
-    async get() {
-      return value ? {value} : null;
+    async read() {
+      return formCache.parseBackup(value);
     },
-    async set(details) {
-      value = details.value;
-      return details;
+    async write(data) {
+      value = formCache.hasFormValues(data) ? formCache.serializeBackup(data) : null;
+    },
+    async clearLegacyCookie() {
+      legacyCleared = true;
     },
     getValue() {
       return value;
+    },
+    wasLegacyCleared() {
+      return legacyCleared;
     }
   };
 }
 
-test("serializes and parses form backup cookies", () => {
+test("serializes and parses JSON localStorage backups", () => {
+  const encoded = formCache.serializeBackup({
+    regexHost: ".*\\.foo\\.com",
+    regexNames: "session_id",
+    preferredLanguage: "zh"
+  });
+  assert.deepEqual(formCache.parseBackup(encoded), {
+    regexHost: ".*\\.foo\\.com",
+    regexNames: "session_id",
+    preferredLanguage: "zh"
+  });
+  assert.equal(formCache.parseBackup("not-json"), null);
+});
+
+test("parses legacy encoded cookie backups", () => {
   const encoded = formCache.serializeForm({
     regexHost: ".*\\.foo\\.com",
     regexNames: "session_id",
@@ -46,46 +66,82 @@ test("serializes and parses form backup cookies", () => {
     regexNames: "session_id",
     preferredLanguage: "zh"
   });
-  assert.equal(formCache.parseForm("not-json"), null);
+  assert.deepEqual(formCache.parseBackup(encoded), {
+    regexHost: ".*\\.foo\\.com",
+    regexNames: "session_id",
+    preferredLanguage: "zh"
+  });
 });
 
-test("restores form values from localhost cookie when storage is empty", async () => {
+test("restores form values from localStorage backup when storage is empty", async () => {
   const storage = mockStorage({});
-  const cookies = mockCookies(formCache.serializeForm({
+  const backup = mockBackup(formCache.serializeBackup({
     regexHost: "auth.example.com",
     regexNames: "^token$"
   }));
 
-  const form = await formCache.loadForm(storage, cookies);
+  const form = await formCache.loadForm(storage, backup);
   assert.equal(form.regexHost, "auth.example.com");
   assert.equal(form.regexNames, "^token$");
   assert.equal(storage.data.regexHost, "auth.example.com");
+  assert.equal(backup.wasLegacyCleared(), true);
 });
 
-test("keeps storage values and refreshes the backup cookie", async () => {
+test("keeps storage values and refreshes the localStorage backup", async () => {
   const storage = mockStorage({
     regexHost: "stored.example.com",
     regexNames: "sid"
   });
-  const cookies = mockCookies();
+  const backup = mockBackup();
 
-  const form = await formCache.loadForm(storage, cookies);
+  const form = await formCache.loadForm(storage, backup);
   assert.equal(form.regexHost, "stored.example.com");
-  assert.deepEqual(formCache.parseForm(cookies.getValue()), {
+  assert.deepEqual(formCache.parseBackup(backup.getValue()), {
     regexHost: "stored.example.com",
     regexNames: "sid",
     preferredLanguage: ""
   });
+  assert.equal(backup.wasLegacyCleared(), true);
 });
 
-test("saveForm writes both storage and backup cookie", async () => {
+test("saveForm writes both storage and localStorage backup", async () => {
   const storage = mockStorage({regexHost: "old.com", regexNames: "old"});
-  const cookies = mockCookies();
+  const backup = mockBackup();
 
-  await formCache.saveForm({regexHost: "new.com"}, storage, cookies);
+  await formCache.saveForm({regexHost: "new.com"}, storage, backup);
   assert.equal(storage.data.regexHost, "new.com");
-  assert.equal(formCache.parseForm(cookies.getValue()).regexHost, "new.com");
-  assert.equal(formCache.parseForm(cookies.getValue()).regexNames, "old");
+  assert.equal(formCache.parseBackup(backup.getValue()).regexHost, "new.com");
+  assert.equal(formCache.parseBackup(backup.getValue()).regexNames, "old");
+  assert.equal(backup.wasLegacyCleared(), true);
+});
+
+test("applyIncomingBackup restores empty storage from the page value", async () => {
+  const storage = mockStorage({});
+  const backup = mockBackup();
+  const result = await formCache.applyIncomingBackup(
+    formCache.serializeBackup({regexHost: "page.example.com", regexNames: "sid"}),
+    storage,
+    backup
+  );
+
+  assert.equal(result.restored, true);
+  assert.equal(result.form.regexHost, "page.example.com");
+  assert.equal(storage.data.regexHost, "page.example.com");
+  assert.equal(backup.wasLegacyCleared(), true);
+});
+
+test("applyIncomingBackup prefers storage over the page backup", async () => {
+  const storage = mockStorage({regexHost: "stored.example.com", regexNames: "sid"});
+  const backup = mockBackup();
+  const result = await formCache.applyIncomingBackup(
+    formCache.serializeBackup({regexHost: "page.example.com", regexNames: "other"}),
+    storage,
+    backup
+  );
+
+  assert.equal(result.restored, false);
+  assert.equal(result.form.regexHost, "stored.example.com");
+  assert.equal(formCache.parseBackup(backup.getValue()).regexHost, "stored.example.com");
 });
 
 test("builds and parses a shareable config file", () => {

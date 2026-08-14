@@ -26,5 +26,12 @@
   },
   "background": {
     "service_worker": "service_worker.js"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost/*", "http://localhost:*/*"],
+      "js": ["form-backup.js"],
+      "run_at": "document_start"
+    }
+  ]
 }

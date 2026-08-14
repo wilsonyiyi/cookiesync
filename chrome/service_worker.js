@@ -142,6 +142,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             .catch((error) => sendResponse({ok: false, error: error.message}));
         return true;
     }
+    if (Object.prototype.hasOwnProperty.call(message, "formBackup")) {
+        CookieSyncForm.applyIncomingBackup(message.formBackup)
+            .then((result) => {
+                if (result.restored) {
+                    return updateRegexpes().then(() => result);
+                }
+                return result;
+            })
+            .then((result) => sendResponse({ok: true, restored: result.restored}))
+            .catch((error) => sendResponse({ok: false, error: error.message}));
+        return true;
+    }
 });
 
 chrome.cookies.onChanged.addListener((changeInfo) => {
