@@ -106,6 +106,11 @@ function getRelativeTime(timestamp) {
     return t("hoursAgo", {count: Math.floor(elapsedMinutes / 60)});
 }
 
+var howItWorksUrls = {
+    en: "https://github.com/wilsonyiyi/cookiesync#how-it-works",
+    zh: "https://github.com/wilsonyiyi/cookiesync/blob/main/README.zh-CN.md#%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86"
+};
+
 function applyLanguage(language) {
     currentLanguage = normalizeLanguage(language);
     document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
@@ -113,6 +118,11 @@ function applyLanguage(language) {
     document.querySelectorAll("[data-i18n]").forEach(function(node) {
         node.textContent = t(node.dataset.i18n);
     });
+
+    var howItWorksLink = document.getElementById("howItWorksLink");
+    if (howItWorksLink) {
+        howItWorksLink.href = howItWorksUrls[currentLanguage] || howItWorksUrls.en;
+    }
 
     var langLabel = document.getElementById("langLabel");
     var langToggle = document.getElementById("langToggle");

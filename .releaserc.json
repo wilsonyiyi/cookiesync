@@ -43,7 +43,9 @@
             "path": "cookiesync-chrome.zip",
             "label": "Chrome extension"
           }
-        ]
+        ],
+        "successCommentCondition": false,
+        "failCommentCondition": false
       }
     ]
   ]
