@@ -1,5 +1,13 @@
 # Changelog
 
+# [1.2.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.1.0...v1.2.0) (2026-08-14)
+
+
+### Features
+
+* **form-cache:** implement form caching with cookie backup and restore functionality ([8b11015](https://github.com/wilsonyiyi/cookiesync/commit/8b11015db35388ce89fbd0f093713ea704af8cc3))
+* **update:** implement update check functionality and UI enhancements ([3de0aea](https://github.com/wilsonyiyi/cookiesync/commit/3de0aea0a00d74be1721ce07fb01d33a496e9873))
+
 # [1.1.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.0.0...v1.1.0) (2026-08-14)
 
 
