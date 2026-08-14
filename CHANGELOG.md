@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.1.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.0.0...v1.1.0) (2026-08-14)
+
+
+### Features
+
+* **release:** update release configuration and add tests; remove unused Sketch file ([7201729](https://github.com/wilsonyiyi/cookiesync/commit/7201729efb5015859305833d51a5cb4b36a5b7fe))
+
 # 1.0.0 (2026-08-13)
 
 
