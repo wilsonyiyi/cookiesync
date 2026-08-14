@@ -485,9 +485,54 @@ a:focus-visible {
     height: 14px;
 }
 
+.footer-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .version {
+    display: inline-flex;
+    align-items: center;
     color: var(--color-text-tertiary);
     font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.version.is-checking {
+    pointer-events: none;
+}
+
+.version.is-checking::after {
+    content: "";
+    width: 10px;
+    height: 10px;
+    margin-left: 6px;
+    border: 1.5px solid #d0d5dd;
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+.app-footer .update-button {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #d8f5e5;
+    color: #178a5a;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    gap: 0;
+}
+
+.app-footer .update-button[hidden] {
+    display: none !important;
+}
+
+.app-footer .update-button:hover {
+    background: #c5eed8;
+    color: #14784e;
 }
 
 @keyframes spin {

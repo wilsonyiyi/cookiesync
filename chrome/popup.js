@@ -5,6 +5,8 @@ var lastSyncKey = "lastSyncStatus";
 var currentLanguage = "en";
 var buttonState = {type: "idle", copied: 0};
 var syncState = {type: "ready", copied: 0, failed: 0, timestamp: 0, error: ""};
+var updateState = null;
+var updateCheckInFlight = false;
 var buttonResetTimer = null;
 
 var translations = {
@@ -39,6 +41,9 @@ var translations = {
         oneCookieFailed: "1 cookie failed",
         viewDetails: "View details",
         howItWorks: "How it works",
+        update: "Update",
+        checkForUpdate: "Check for updates",
+        checkingUpdate: "Checking for updates",
         langToggle: "中文",
         switchLanguage: "切换到中文"
     },
@@ -73,6 +78,9 @@ var translations = {
         oneCookieFailed: "1 个 Cookie 失败",
         viewDetails: "查看详情",
         howItWorks: "工作原理",
+        update: "更新",
+        checkForUpdate: "检查更新",
+        checkingUpdate: "正在检查更新",
         langToggle: "English",
         switchLanguage: "Switch to English"
     }
@@ -135,6 +143,8 @@ function applyLanguage(language) {
 
     renderButton();
     renderStatus();
+    renderUpdateLink();
+    renderVersionChecking();
 }
 
 function setLanguage(language) {
@@ -335,6 +345,78 @@ function runManualSync() {
     });
 }
 
+function renderUpdateLink() {
+    var link = document.getElementById("updateLink");
+    if (!link) {
+        return;
+    }
+    if (!CookieSyncUpdate.hasVisibleUpdate(updateState, getInstalledVersion())) {
+        link.hidden = true;
+        link.removeAttribute("href");
+        return;
+    }
+    link.href = updateState.releaseUrl;
+    link.hidden = false;
+}
+
+function getInstalledVersion() {
+    var manifest = chrome.runtime.getManifest ? chrome.runtime.getManifest() : null;
+    return manifest && manifest.version ? manifest.version : "";
+}
+
+function applyStoredUpdate(cache) {
+    var currentVersion = getInstalledVersion();
+    if (!cache || cache.currentVersion !== CookieSyncUpdate.normalizeVersion(currentVersion)) {
+        updateState = null;
+        renderUpdateLink();
+        return;
+    }
+    updateState = cache;
+    renderUpdateLink();
+}
+
+function renderVersionChecking() {
+    var versionNode = document.getElementById("version");
+    if (!versionNode) {
+        return;
+    }
+    versionNode.classList.toggle("is-checking", updateCheckInFlight);
+    versionNode.setAttribute("aria-busy", updateCheckInFlight ? "true" : "false");
+    versionNode.setAttribute("aria-label", t(updateCheckInFlight ? "checkingUpdate" : "checkForUpdate"));
+}
+
+function checkForUpdate(force) {
+    if (force) {
+        if (updateCheckInFlight) {
+            return;
+        }
+        updateCheckInFlight = true;
+        renderVersionChecking();
+    }
+    var startedAt = Date.now();
+    chrome.storage.local.get(CookieSyncUpdate.STORAGE_KEY, function(result) {
+        applyStoredUpdate(result[CookieSyncUpdate.STORAGE_KEY]);
+        chrome.runtime.sendMessage({checkUpdate: true, force: Boolean(force)}, function(response) {
+            void chrome.runtime.lastError;
+            function finish() {
+                if (force) {
+                    updateCheckInFlight = false;
+                    renderVersionChecking();
+                }
+                if (response && response.state) {
+                    applyStoredUpdate(response.state);
+                }
+            }
+            if (!force) {
+                finish();
+                return;
+            }
+            var remaining = Math.max(0, 400 - (Date.now() - startedAt));
+            setTimeout(finish, remaining);
+        });
+    });
+}
+
 function initialize() {
     var port = chrome.runtime.connect({name: "port-from-cs"});
     port.onMessage.addListener(function(message) {
@@ -367,10 +449,20 @@ function initialize() {
 
     document.getElementById("syncButton").addEventListener("click", runManualSync);
 
-    var manifest = chrome.runtime.getManifest ? chrome.runtime.getManifest() : null;
-    if (manifest && manifest.version) {
-        document.getElementById("version").textContent = "v" + manifest.version;
+    var versionNode = document.getElementById("version");
+    var installedVersion = getInstalledVersion();
+    if (installedVersion) {
+        versionNode.textContent = "v" + installedVersion;
     }
+    versionNode.addEventListener("click", function() {
+        checkForUpdate(true);
+    });
+
+    chrome.storage.onChanged.addListener(function(changes, area) {
+        if (area === "local" && changes[CookieSyncUpdate.STORAGE_KEY]) {
+            applyStoredUpdate(changes[CookieSyncUpdate.STORAGE_KEY].newValue);
+        }
+    });
 
     chrome.storage.local.get([languageKey, lastSyncKey], function(result) {
         var browserLanguage = chrome.i18n && chrome.i18n.getUILanguage
@@ -383,6 +475,7 @@ function initialize() {
             }
         }
         applyLanguage(result[languageKey] || browserLanguage);
+        checkForUpdate();
     });
 
     setInterval(function() {

@@ -1,3 +1,5 @@
+importScripts("update-check.js");
+
 var defaultHost = ".*\\.example\\.com";
 var defaultNames = ["sessionid.*"].join('\n');
 
@@ -75,7 +77,54 @@ async function manualSyncCookies() {
     return {copied, failed};
 }
 
-// 监听来自popup的消息，处理手动同步请求
+async function runUpdateCheck(force) {
+    const currentVersion = chrome.runtime.getManifest().version;
+    const stored = await chrome.storage.local.get(CookieSyncUpdate.STORAGE_KEY);
+    const cache = stored[CookieSyncUpdate.STORAGE_KEY];
+    const now = Date.now();
+    if (CookieSyncUpdate.shouldSkipFetch(cache, currentVersion, now, {force: Boolean(force)})) {
+        await scheduleNextCheck(cache, now);
+        return cache;
+    }
+    try {
+        const latest = await CookieSyncUpdate.fetchLatestRelease();
+        const state = CookieSyncUpdate.buildUpdateState(currentVersion, latest, Date.now(), cache);
+        await chrome.storage.local.set({[CookieSyncUpdate.STORAGE_KEY]: state});
+        await scheduleNextCheck(state, state.checkedAt);
+        console.log("CookieSync update check", state);
+        return state;
+    } catch (error) {
+        console.warn("CookieSync update check failed:", error);
+        await scheduleNextCheck({
+            checkedAt: now,
+            nextDelayMs: CookieSyncUpdate.MIN_BACKOFF_MS
+        }, now);
+        return cache || null;
+    }
+}
+
+async function scheduleNextCheck(state, now) {
+    const delayMs = CookieSyncUpdate.remainingDelayMs(state, now || Date.now());
+    await chrome.alarms.clear("cookiesync-update-check");
+    chrome.alarms.create("cookiesync-update-check", {
+        delayInMinutes: Math.max(1, delayMs / 60000)
+    });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+    runUpdateCheck(true);
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    runUpdateCheck(false);
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "cookiesync-update-check") {
+        runUpdateCheck(false);
+    }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.manualSync) {
         manualSyncCookies()
@@ -84,6 +133,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.error('Error during manual sync:', error);
                 sendResponse({copied: 0, failed: 0, error: error.message});
             });
+        return true;
+    }
+    if (message.checkUpdate) {
+        runUpdateCheck(Boolean(message.force))
+            .then((state) => sendResponse({ok: true, state: state || null}))
+            .catch((error) => sendResponse({ok: false, error: error.message}));
         return true;
     }
 });

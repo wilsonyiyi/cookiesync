@@ -97,10 +97,16 @@
             <span data-i18n="howItWorks">How it works</span>
             <svg class="footer-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </a>
-        <span id="version" class="version">v1.1.0</span>
+        <div class="footer-meta">
+            <span id="version" class="version">v1.1.0</span>
+            <a id="updateLink" class="update-button" hidden target="_blank" rel="noreferrer">
+                <span data-i18n="update">Update</span>
+            </a>
+        </div>
     </footer>
 </main>
 
+<script src="update-check.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>
