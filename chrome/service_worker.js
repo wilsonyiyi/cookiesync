@@ -3,6 +3,7 @@ importScripts("form-cache.js");
 
 var defaultHost = ".*\\.example\\.com";
 var defaultNames = ["sessionid.*"].join('\n');
+var lastSyncKey = "lastSyncStatus";
 
 var hostsArray = [];
 var namesArray = [];
@@ -52,6 +53,32 @@ async function copyCookieToLocalhost(cookie) {
         throw new Error(chrome.runtime.lastError?.message || `cookies.set returned empty for ${cookie.name}`);
     }
     return result;
+}
+
+async function syncChangedCookie(cookie) {
+    try {
+        await copyCookieToLocalhost(cookie);
+        await chrome.storage.local.set({
+            [lastSyncKey]: {
+                type: "success",
+                copied: 1,
+                failed: 0,
+                timestamp: Date.now(),
+                error: ""
+            }
+        });
+    } catch (setError) {
+        await chrome.storage.local.set({
+            [lastSyncKey]: {
+                type: "error",
+                copied: 0,
+                failed: 1,
+                timestamp: Date.now(),
+                error: setError.message || String(setError)
+            }
+        });
+        console.warn("Failed to set cookie " + cookie.name + ":", setError);
+    }
 }
 
 async function manualSyncCookies() {
@@ -175,9 +202,7 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
         return;
     }
     if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
-        copyCookieToLocalhost(cookie).catch((setError) => {
-            console.warn(`Failed to set cookie ${cookie.name}:`, setError);
-        });
+        syncChangedCookie(cookie);
     }
 });
 

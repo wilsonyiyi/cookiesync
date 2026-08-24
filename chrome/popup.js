@@ -331,6 +331,29 @@ function setSyncState(nextState, persist) {
     }
 }
 
+function applyStoredSyncState(nextState) {
+    if (!nextState || (nextState.type !== "success" && nextState.type !== "error")) {
+        return;
+    }
+    var previousError = syncState.type === "error" ? syncState.error : "";
+    syncState = Object.assign(
+        {type: "ready", copied: 0, failed: 0, timestamp: 0, error: ""},
+        nextState
+    );
+    if (syncState.type === "error" && syncState.error) {
+        setWarning(syncState.error);
+    } else if (previousError) {
+        ["warning", "settingsWarning"].forEach(function(id) {
+            var warning = document.getElementById(id);
+            if (warning && warning.textContent === previousError) {
+                warning.textContent = "";
+                warning.classList.remove("is-visible");
+            }
+        });
+    }
+    renderStatus();
+}
+
 function setButtonState(type, copied) {
     buttonState = {type: type, copied: copied || 0};
     renderButton();
@@ -651,12 +674,7 @@ function initialize() {
             var browserLanguage = chrome.i18n && chrome.i18n.getUILanguage
                 ? chrome.i18n.getUILanguage()
                 : navigator.language;
-            if (result[lastSyncKey] && (result[lastSyncKey].type === "success" || result[lastSyncKey].type === "error")) {
-                syncState = result[lastSyncKey];
-                if (syncState.type === "error" && syncState.error) {
-                    setWarning(syncState.error);
-                }
-            }
+            applyStoredSyncState(result[lastSyncKey]);
             applyLanguage(form.preferredLanguage || browserLanguage);
             checkForUpdate();
         });
@@ -676,8 +694,14 @@ function initialize() {
     });
 
     chrome.storage.onChanged.addListener(function(changes, area) {
-        if (area === "local" && changes[CookieSyncUpdate.STORAGE_KEY]) {
+        if (area !== "local") {
+            return;
+        }
+        if (changes[CookieSyncUpdate.STORAGE_KEY]) {
             applyStoredUpdate(changes[CookieSyncUpdate.STORAGE_KEY].newValue);
+        }
+        if (changes[lastSyncKey]) {
+            applyStoredSyncState(changes[lastSyncKey].newValue);
         }
     });
 
