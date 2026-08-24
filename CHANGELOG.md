@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/wilsonyiyi/cookiesync/compare/v1.5.0...v1.5.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* **sync:** track automatic cookie sync time ([6a7bf56](https://github.com/wilsonyiyi/cookiesync/commit/6a7bf569234a7d8bdcd0b68a8cfa4b52c9f3b4cb))
+
 # [1.5.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.4.0...v1.5.0) (2026-08-14)
 
 
