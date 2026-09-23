@@ -14,17 +14,24 @@ async function updateRegexpes() {
     hostsArray = (form.regexHost || defaultHost).split("\n");
 }
 
+var regexpesReady = updateRegexpes();
+
+function refreshRegexpes() {
+    regexpesReady = updateRegexpes();
+    return regexpesReady;
+}
+
 chrome.runtime.onConnect.addListener(port => {
     console.log("CookieSync: onConnect");
     port.onMessage.addListener(async (m) => {
         console.log("CookieSync: onMessage");
         if (m.updateHost) {
             await CookieSyncForm.saveForm({regexHost: m.updateHost});
-            updateRegexpes();
+            await refreshRegexpes();
         }
         if (m.updateRegexNames) {
             await CookieSyncForm.saveForm({regexNames: m.updateRegexNames});
-            updateRegexpes();
+            await refreshRegexpes();
         }
     });
 });
@@ -174,7 +181,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         CookieSyncForm.applyIncomingBackup(message.formBackup, null, null, tabId)
             .then((result) => {
                 if (result.restored) {
-                    return updateRegexpes().then(() => result);
+                    return refreshRegexpes().then(() => result);
                 }
                 return result;
             })
@@ -190,7 +197,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-chrome.cookies.onChanged.addListener((changeInfo) => {
+chrome.cookies.onChanged.addListener(async (changeInfo) => {
     if (changeInfo.removed) {
         return;
     }
@@ -201,6 +208,7 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
     if (cookie.domain === "localhost" || cookie.domain === ".localhost") {
         return;
     }
+    await regexpesReady;
     if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
         syncChangedCookie(cookie);
     }
@@ -221,14 +229,12 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     CookieSyncForm.applyIncomingBackup(null, null, null, tab.id)
         .then((result) => {
             if (result.restored) {
-                return updateRegexpes();
+                return refreshRegexpes();
             }
         })
         .catch((error) => {
             console.warn("CookieSync form backup sync failed:", error);
         });
 });
-
-updateRegexpes();
 
 console.log("CookieSync: installed service worker");
