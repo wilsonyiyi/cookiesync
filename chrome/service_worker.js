@@ -36,9 +36,148 @@ chrome.runtime.onConnect.addListener(port => {
     });
 });
 
+function isLocalhostDomain(domain) {
+    return (domain || "").replace(/^\./, "").toLowerCase() === "localhost";
+}
+
+function localhostCookieUrl(path) {
+    if (!path || path === "/") {
+        return "http://localhost";
+    }
+    return "http://localhost" + (path.startsWith("/") ? path : "/" + path);
+}
+
+function cookieDomainMatchesHost(cookie, hostname) {
+    const raw = cookie.domain || "";
+    const domain = raw.replace(/^\./, "").toLowerCase();
+    const host = (hostname || "").toLowerCase();
+    const hostOnly = cookie.hostOnly != null ? cookie.hostOnly : !raw.startsWith(".");
+    if (hostOnly) {
+        return host === domain;
+    }
+    return host === domain || host.endsWith("." + domain);
+}
+
+function cookiePathMatches(cookiePath, requestPath) {
+    const path = cookiePath || "/";
+    const req = requestPath || "/";
+    if (path === "/") {
+        return true;
+    }
+    if (req === path) {
+        return true;
+    }
+    const prefix = path.endsWith("/") ? path : path + "/";
+    return req.startsWith(prefix);
+}
+
+function cookieAppliesToUrl(cookie, urlString) {
+    let url;
+    try {
+        url = new URL(urlString);
+    } catch (error) {
+        return false;
+    }
+    if (cookie.secure && url.protocol !== "https:") {
+        return false;
+    }
+    if (!cookieDomainMatchesHost(cookie, url.hostname)) {
+        return false;
+    }
+    return cookiePathMatches(cookie.path, url.pathname);
+}
+
+function sameCookieIdentity(a, b) {
+    return a.name === b.name
+        && a.domain === b.domain
+        && (a.path || "/") === (b.path || "/")
+        && (a.storeId || "0") === (b.storeId || "0");
+}
+
+function mostSpecificCookie(cookies) {
+    return cookies.slice().sort((a, b) => {
+        const pathDiff = (b.path || "/").length - (a.path || "/").length;
+        if (pathDiff) {
+            return pathDiff;
+        }
+        if (Boolean(a.hostOnly) !== Boolean(b.hostOnly)) {
+            return a.hostOnly ? -1 : 1;
+        }
+        return 0;
+    })[0];
+}
+
+function chooseCookiesToSync(cookies, preferredUrls) {
+    const groups = new Map();
+    for (const cookie of cookies) {
+        if (!cookie || cookie.name === CookieSyncForm.COOKIE_NAME || isLocalhostDomain(cookie.domain)) {
+            continue;
+        }
+        if (!doesCookieHostMatch(cookie.domain) || !doesCookieNameMatch(cookie.name)) {
+            continue;
+        }
+        const list = groups.get(cookie.name) || [];
+        list.push(cookie);
+        groups.set(cookie.name, list);
+    }
+
+    const chosen = [];
+    for (const list of groups.values()) {
+        let pick = null;
+        for (const url of preferredUrls || []) {
+            const applicable = list.filter((cookie) => cookieAppliesToUrl(cookie, url));
+            if (applicable.length) {
+                pick = mostSpecificCookie(applicable);
+                break;
+            }
+        }
+        if (!pick && list.length === 1) {
+            pick = list[0];
+        }
+        if (pick) {
+            chosen.push(pick);
+        }
+    }
+    return chosen;
+}
+
+async function getPreferredSourceUrls() {
+    if (!chrome.tabs || !chrome.tabs.query) {
+        return [];
+    }
+    const [tabs, focused] = await Promise.all([
+        chrome.tabs.query({}),
+        chrome.tabs.query({active: true, lastFocusedWindow: true})
+    ]);
+    const matching = [];
+    for (const tab of tabs) {
+        if (!tab.url || CookieSyncForm.isLocalhostUrl(tab.url)) {
+            continue;
+        }
+        let hostname = "";
+        try {
+            hostname = new URL(tab.url).hostname;
+        } catch (error) {
+            continue;
+        }
+        if (!hostname || !doesCookieHostMatch(hostname)) {
+            continue;
+        }
+        matching.push(tab);
+    }
+    matching.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+    const focusedTab = focused && focused[0];
+    if (focusedTab && matching.some((tab) => tab.id === focusedTab.id)) {
+        return [focusedTab.url].concat(
+            matching.filter((tab) => tab.id !== focusedTab.id).map((tab) => tab.url)
+        );
+    }
+    return matching.map((tab) => tab.url);
+}
+
 function toLocalhostCookie(cookie) {
     const details = {
-        url: "http://localhost",
+        url: localhostCookieUrl(cookie.path),
         name: cookie.name,
         value: cookie.value,
         path: cookie.path || "/",
@@ -54,7 +193,31 @@ function toLocalhostCookie(cookie) {
     return details;
 }
 
+async function removeLocalhostCookies(name, storeId) {
+    if (!chrome.cookies.getAll || !chrome.cookies.remove) {
+        return;
+    }
+    const existing = await chrome.cookies.getAll({name: name});
+    for (const cookie of existing) {
+        if (!isLocalhostDomain(cookie.domain)) {
+            continue;
+        }
+        if (storeId && cookie.storeId && cookie.storeId !== storeId) {
+            continue;
+        }
+        const details = {
+            url: (cookie.secure ? "https://localhost" : "http://localhost") + (cookie.path && cookie.path !== "/" ? cookie.path : "/"),
+            name: cookie.name
+        };
+        if (cookie.storeId) {
+            details.storeId = cookie.storeId;
+        }
+        await chrome.cookies.remove(details);
+    }
+}
+
 async function copyCookieToLocalhost(cookie) {
+    await removeLocalhostCookies(cookie.name, cookie.storeId);
     const result = await chrome.cookies.set(toLocalhostCookie(cookie));
     if (!result) {
         throw new Error(chrome.runtime.lastError?.message || `cookies.set returned empty for ${cookie.name}`);
@@ -88,23 +251,41 @@ async function syncChangedCookie(cookie) {
     }
 }
 
+async function cookieForChange(cookie) {
+    if (!cookie || cookie.name === CookieSyncForm.COOKIE_NAME || isLocalhostDomain(cookie.domain)) {
+        return null;
+    }
+    await regexpesReady;
+    if (!doesCookieHostMatch(cookie.domain) || !doesCookieNameMatch(cookie.name)) {
+        return null;
+    }
+    const preferredUrls = await getPreferredSourceUrls();
+    if (!preferredUrls.length) {
+        return cookie;
+    }
+    const sameName = await chrome.cookies.getAll({name: cookie.name});
+    const winner = chooseCookiesToSync(sameName, preferredUrls)
+        .find((item) => item.name === cookie.name);
+    if (!winner || !sameCookieIdentity(winner, cookie)) {
+        return null;
+    }
+    return winner;
+}
+
 async function manualSyncCookies() {
+    await regexpesReady;
     const allCookies = await chrome.cookies.getAll({});
+    const selected = chooseCookiesToSync(allCookies, await getPreferredSourceUrls());
     let copied = 0;
     let failed = 0;
 
-    for (const cookie of allCookies) {
-        if (cookie.name === CookieSyncForm.COOKIE_NAME) {
-            continue;
-        }
-        if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
-            try {
-                await copyCookieToLocalhost(cookie);
-                copied += 1;
-            } catch (setError) {
-                failed += 1;
-                console.warn(`Failed to set cookie ${cookie.name}:`, setError);
-            }
+    for (const cookie of selected) {
+        try {
+            await copyCookieToLocalhost(cookie);
+            copied += 1;
+        } catch (setError) {
+            failed += 1;
+            console.warn(`Failed to set cookie ${cookie.name}:`, setError);
         }
     }
 
@@ -201,15 +382,8 @@ chrome.cookies.onChanged.addListener(async (changeInfo) => {
     if (changeInfo.removed) {
         return;
     }
-    const cookie = changeInfo.cookie;
-    if (cookie.name === CookieSyncForm.COOKIE_NAME) {
-        return;
-    }
-    if (cookie.domain === "localhost" || cookie.domain === ".localhost") {
-        return;
-    }
-    await regexpesReady;
-    if (doesCookieHostMatch(cookie.domain) && doesCookieNameMatch(cookie.name)) {
+    const cookie = await cookieForChange(changeInfo.cookie);
+    if (cookie) {
         syncChangedCookie(cookie);
     }
 });
