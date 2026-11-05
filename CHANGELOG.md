@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.6.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.5.3...v1.6.0) (2026-11-05)
+
+
+### Features
+
+* **cookies:** add popup cookie management ([5886c82](https://github.com/wilsonyiyi/cookiesync/commit/5886c824c476a4928795e750a1c3cb1b4fe7cfda))
+
 ## [1.5.3](https://github.com/wilsonyiyi/cookiesync/compare/v1.5.2...v1.5.3) (2026-10-20)
 
 
