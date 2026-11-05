@@ -206,23 +206,6 @@
     outline: 2px solid #a6b5ff;
     outline-offset: 2px;
 }
-.cm-message {
-    padding: 8px 12px;
-    margin: 0 14px 8px;
-    background: #f0f4ff;
-    color: #586d98;
-    border-radius: 6px;
-    font-size: 11px;
-    white-space: pre-line;
-    overflow-wrap: anywhere;
-    max-height: 100px;
-    overflow: auto;
-    flex-shrink: 0;
-}
-.cm-message.is-error {
-    color: #b44c59;
-    background: #fff0f1;
-}
 .cm-list {
     flex: 1;
     min-height: 0;

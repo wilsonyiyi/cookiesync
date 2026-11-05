@@ -1,0 +1,23 @@
+.popup-toast {
+    position: absolute;
+    z-index: 1000;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: max-content;
+    max-width: calc(100% - 48px);
+    box-sizing: border-box;
+    padding: 10px 16px;
+    border: 1px solid rgb(255 255 255 / 12%);
+    border-radius: 10px;
+    background: rgb(36 44 62 / 94%);
+    color: #fff;
+    box-shadow: 0 6px 24px rgb(20 30 50 / 14%);
+    font: 12px/1.6 var(--font-sans);
+    text-align: center;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    pointer-events: none;
+}
+.popup-toast[hidden] { display: none; }
+.popup-toast.is-error { background: rgb(126 49 62 / 96%); }

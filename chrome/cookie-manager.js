@@ -211,10 +211,7 @@
         String(error);
     const keyOf = (c) => apiModel.identity(c);
     function notice(text, error = false) {
-        const n = $(".cm-message");
-        n.hidden = !text;
-        n.textContent = text;
-        n.classList.toggle("is-error", error);
+        window.PopupToast.show(text, { error });
     }
     function setBusy(value) {
         busy = value;
@@ -242,7 +239,8 @@
         }
     }
     function shell() {
-        root.innerHTML = `<header class="cm-head"><button class="cm-back" data-action="back">${icon("arrow")}${t("back")}</button><h2>${t("title")}</h2><button class="cm-icon cm-refresh" data-action="refresh" aria-label="${t("refresh")}">${icon("refresh")}</button></header><div class="cm-search">${icon("search")}<input type="search" aria-label="${t("search")}" placeholder="${t("search")}" autocomplete="off"><label class="cm-check"><input type="checkbox" data-all>${t("details")}</label></div><div class="cm-message" role="status" aria-live="polite" hidden></div><div class="cm-list"></div><footer class="cm-foot">${[
+        window.PopupToast.clear();
+        root.innerHTML = `<header class="cm-head"><button class="cm-back" data-action="back">${icon("arrow")}${t("back")}</button><h2>${t("title")}</h2><button class="cm-icon cm-refresh" data-action="refresh" aria-label="${t("refresh")}">${icon("refresh")}</button></header><div class="cm-search">${icon("search")}<input type="search" aria-label="${t("search")}" placeholder="${t("search")}" autocomplete="off"><label class="cm-check"><input type="checkbox" data-all>${t("details")}</label></div><div class="cm-list"></div><footer class="cm-foot">${[
             ["add", "plus"],
             ["import", "down"],
             ["export", "up"],
@@ -537,6 +535,7 @@
         });
     }
     function leave() {
+        window.PopupToast.clear();
         root.hidden = true;
         root.parentElement.classList.remove("is-managing");
         document.getElementById("syncHome").hidden = false;
