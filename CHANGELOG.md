@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/wilsonyiyi/cookiesync/compare/v1.6.0...v1.6.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **cookies:** use transient toast feedback and document manager UI ([c894145](https://github.com/wilsonyiyi/cookiesync/commit/c89414561628b40a9b2a8ac128f3c24895f3345f))
+
 # [1.6.0](https://github.com/wilsonyiyi/cookiesync/compare/v1.5.3...v1.6.0) (2026-11-05)
 
 
