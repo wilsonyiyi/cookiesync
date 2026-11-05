@@ -65,6 +65,19 @@ CookieSync 会忽略已经属于 <code>localhost</code> 的 Cookie，避免触�
 - 因目标使用 HTTP，关闭 Secure 标记；
 - 为兼容 localhost，将 <code>SameSite=None</code> 转换为 <code>Lax</code>。
 
+## Cookie 管理
+
+同步仍是默认首页。点击顶部 **Cookie 管理**，在同一个 400 × 600px Popup 中查看当前 HTTP/HTTPS 页面适用的 Cookie，返回时保留同步配置。
+
+- 按名称搜索，展开行内编辑 Name、Value；详细属性包含 Domain、Path、SameSite、过期时间以及 Host Only、Session、Secure、HttpOnly。
+- 使用自定义下拉菜单、勾选框和时间输入；过期时间采用本地时间 `YYYY-MM-DD HH:mm:ss`。
+- 新增、单条删除、清空当前页面列表、JSON 文件导出、粘贴或选择 JSON 文件导入；导入前预检与确认，批量操作报告成功和失败数量。
+- 清空范围为当前页面完整列表，包含搜索隐藏的条目；不会枚举并删除整个浏览器的 Cookie。
+- 保留 Cookie 存储区和分区键；导入不允许写入其他站点或存储区。编辑冲突和无法精确定位的同名删除会明确报错。
+- 现有自动同步持续运行：修改匹配来源 Cookie 会触发同步，删除来源 Cookie 不会自动删除 localhost 副本。
+
+Cookie JSON 与设置页的“配置导入/导出”是不同格式。导出的 Cookie 文件包含认证信息，请妥善保管。导入文件上限 2 MB、1000 个 Cookie。
+
 ## 从源码安装
 
 CookieSync 当前以 Chrome 未打包扩展的方式提供使用说明。

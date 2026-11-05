@@ -228,3 +228,9 @@ Sincere thanks to Roel Noten for creating CookieSync and sharing it with the com
 ## License
 
 This project is distributed under the terms in [LICENSE](LICENSE).
+
+## Cookie manager
+
+The popup opens on Sync. Use the top **Cookie Manager** button to manage cookies applicable to the current HTTP/HTTPS page, then return without losing sync configuration. The 400 × 600 manager supports name search, inline editing, custom controls, add/delete, scoped clear, JSON import review and JSON export. Expiration uses local `YYYY-MM-DD HH:mm:ss` time.
+
+Clear only affects the complete page list, including search-hidden rows. Cookie stores and partition keys are preserved. Imports are limited to the current domain scope and store (2 MB / 1000 entries). Concurrent edits and ambiguous deletion targets produce errors. Matching source updates still trigger auto-sync; source deletions do not remove localhost copies. Cookie exports contain credentials and differ from configuration backups.

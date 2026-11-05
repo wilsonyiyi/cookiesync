@@ -203,6 +203,7 @@ function applyLanguage(language) {
     renderStatus();
     renderUpdateLink();
     renderVersionChecking();
+    if (window.CookieManager) CookieManager.setLanguage(currentLanguage);
 }
 
 function setLanguage(language) {
