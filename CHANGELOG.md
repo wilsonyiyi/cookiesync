@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/wilsonyiyi/cookiesync/compare/v1.6.2...v1.6.3) (2026-11-06)
+
+
+### Bug Fixes
+
+* **config:** import files in a persistent window ([e823a2e](https://github.com/wilsonyiyi/cookiesync/commit/e823a2e48675c3f9b2ff02e3483515861732fbe3))
+
 ## [1.6.2](https://github.com/wilsonyiyi/cookiesync/compare/v1.6.1...v1.6.2) (2026-11-06)
 
 
