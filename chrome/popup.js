@@ -56,6 +56,8 @@ var translations = {
         importConfigDesc: "Import settings from a JSON file",
         exportDone: "Config exported",
         importDone: "Config imported",
+        importSaveFailed: "Could not save configuration. Please try again.",
+        importReadFailed: "Could not read this file. Please select it again.",
         importFailed: "This file is not a CookieSync config.",
         update: "Update",
         checkForUpdate: "Check for updates",
@@ -107,6 +109,8 @@ var translations = {
         importConfigDesc: "从 JSON 文件导入设置",
         exportDone: "配置已导出",
         importDone: "配置已导入",
+        importSaveFailed: "配置保存失败，请重试。",
+        importReadFailed: "无法读取文件，请重新选择。",
         importFailed: "这不是有效的 CookieSync 配置文件。",
         update: "更新",
         checkForUpdate: "检查更新",
@@ -384,12 +388,15 @@ function setupEditor(options) {
     var countNode = document.getElementById(options.countId);
     var lineNumbers = document.getElementById(options.lineNumbersId);
 
-    function updateAndPersist() {
+    async function updateAndPersist() {
         updateEditorMeta(textarea, countNode, lineNumbers);
-        var value = textarea.value.trim();
-        var message = {};
-        message[options.messageKey] = value;
-        options.port.postMessage(message);
+        try {
+            var response = await chrome.runtime.sendMessage({updateConfig: readVisibleForm()});
+            if (!response || !response.ok) throw new Error("config-save-failed");
+            setWarning("");
+        } catch (error) {
+            setWarning(t("importSaveFailed"));
+        }
     }
 
     textarea.addEventListener("input", updateAndPersist);
@@ -424,7 +431,6 @@ function fillEditor(textareaId, countId, lineNumbersId, value) {
         document.getElementById(countId),
         document.getElementById(lineNumbersId)
     );
-    textarea.dispatchEvent(new Event("input"));
 }
 
 function exportConfig() {
@@ -438,24 +444,38 @@ function exportConfig() {
     URL.revokeObjectURL(url);
 }
 
-function importConfigFile(file) {
-    if (!file) {
-        return;
-    }
-    var reader = new FileReader();
-    reader.onload = function() {
-        var form = CookieSyncForm.parseSharePayload(String(reader.result || ""));
+async function importConfigFile(file) {
+    if (!file) return;
+    var button = document.getElementById("importButton");
+    if (button.disabled) return;
+    button.disabled = true;
+    setWarning("");
+    try {
+        var raw;
+        try {
+            raw = await file.text();
+        } catch (error) {
+            setWarning(t("importReadFailed"));
+            return;
+        }
+        var form = CookieSyncForm.parseSharePayload(raw);
         if (!form) {
             setWarning(t("importFailed"));
             return;
         }
-        setWarning("");
+        // One acknowledged background write survives popup closure and avoids
+        // synthetic input events on a potentially disconnected long-lived port.
+        var response = await chrome.runtime.sendMessage({importConfig: CookieSyncForm.buildSharePayload(form)});
+        if (!response || !response.ok) throw new Error("import-save-failed");
         fillEditor("regexhost", "hostCount", "hostLineNumbers", form.regexHost);
         fillEditor("regexnames", "nameCount", "nameLineNumbers", form.regexNames);
-        CookieSyncForm.saveForm(form);
         setSettingsOpen(false);
-    };
-    reader.readAsText(file);
+        window.PopupToast.show(t("importDone"));
+    } catch (error) {
+        setWarning(t("importSaveFailed"));
+    } finally {
+        button.disabled = false;
+    }
 }
 
 function setupShareActions() {
@@ -643,11 +663,6 @@ function checkForUpdate(force) {
 }
 
 function initialize() {
-    var port = chrome.runtime.connect({name: "port-from-cs"});
-    port.onMessage.addListener(function(message) {
-        setWarning(message.message);
-    });
-
     CookieSyncForm.loadForm().then(function(form) {
         setupEditor({
             textareaId: "regexhost",
@@ -656,8 +671,7 @@ function initialize() {
             storageKey: "regexHost",
             messageKey: "updateHost",
             defaultValue: defaultHost,
-            initialValue: form.regexHost,
-            port: port
+            initialValue: form.regexHost
         });
         setupEditor({
             textareaId: "regexnames",
@@ -666,8 +680,7 @@ function initialize() {
             storageKey: "regexNames",
             messageKey: "updateRegexNames",
             defaultValue: defaultNames,
-            initialValue: form.regexNames,
-            port: port
+            initialValue: form.regexNames
         });
         setupShareActions();
 

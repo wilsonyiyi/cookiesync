@@ -10,6 +10,7 @@ function eventTarget() {
 
 function loadServiceWorker(setCookie) {
   const writes = [];
+  const messages = [];
   const context = {
     console: {log() {}, warn() {}},
     importScripts() {},
@@ -68,7 +69,7 @@ function loadServiceWorker(setCookie) {
         onConnect: eventTarget(),
         onInstalled: eventTarget(),
         onStartup: eventTarget(),
-        onMessage: eventTarget()
+        onMessage: {addListener(listener) { messages.push(listener); }}
       },
       alarms: {
         async clear() {},
@@ -85,7 +86,7 @@ function loadServiceWorker(setCookie) {
     fs.readFileSync(path.join(__dirname, "../chrome/service_worker.js"), "utf8"),
     context
   );
-  return {context, writes};
+  return {context, writes, messages};
 }
 
 test("automatic cookie sync stores the latest successful sync time", async () => {
@@ -131,4 +132,47 @@ test("popup observes background sync status changes", () => {
   const popup = fs.readFileSync(path.join(__dirname, "../chrome/popup.js"), "utf8");
   assert.match(popup, /changes\[lastSyncKey\]/);
   assert.match(popup, /applyStoredSyncState\(changes\[lastSyncKey\]\.newValue\)/);
+});
+
+
+test("config import acknowledges persistence and refreshed background matchers", async () => {
+  const {context, messages} = loadServiceWorker(async () => ({}));
+  const form = {regexHost: "^demo\\.example$", regexNames: "^sample$"};
+  let saved = false;
+  context.CookieSyncForm.parseSharePayload = () => form;
+  context.CookieSyncForm.saveForm = async (value) => {
+    assert.equal(value, form);
+    await new Promise(resolve => setImmediate(resolve));
+    saved = true;
+  };
+  context.CookieSyncForm.loadForm = async () => {
+    assert.equal(saved, true);
+    return form;
+  };
+  const response = await new Promise(resolve => {
+    assert.equal(messages[0]({importConfig: {}}, {}, resolve), true);
+  });
+  assert.equal(response.ok, true);
+  assert.equal(context.hostsArray[0], form.regexHost);
+  assert.equal(context.namesArray[0], form.regexNames);
+  context.CookieSyncForm.saveForm = async () => { throw Error("storage rejected"); };
+  const failure = await new Promise(resolve => messages[0]({importConfig:{}}, {}, resolve));
+  assert.equal(failure.ok, false);
+});
+
+test('rapid configuration edits stay ordered and recover after a failed write',async()=>{
+  const {context,messages}=loadServiceWorker(async()=>({}));
+  let stored={regexHost:'',regexNames:''};
+  const seen=[];
+  context.CookieSyncForm.saveForm=async value=>{
+    await new Promise(resolve=>setTimeout(resolve,value.regexHost==='first'?15:0));
+    if(value.regexHost==='fail')throw Error('write failed');
+    stored=value;seen.push(value.regexHost);
+  };
+  context.CookieSyncForm.loadForm=async()=>stored;
+  const send=regexHost=>new Promise(resolve=>messages[0]({updateConfig:{regexHost,regexNames:'cookie'}},{},resolve));
+  const responses=await Promise.all([send('first'),send('fail'),send('last')]);
+  assert.deepEqual(seen,['first','last']);
+  assert.deepEqual(responses.map(r=>r.ok),[true,false,true]);
+  assert.equal(context.hostsArray[0],'last');
 });

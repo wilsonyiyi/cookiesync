@@ -21,20 +21,16 @@ function refreshRegexpes() {
     return regexpesReady;
 }
 
-chrome.runtime.onConnect.addListener(port => {
-    console.log("CookieSync: onConnect");
-    port.onMessage.addListener(async (m) => {
-        console.log("CookieSync: onMessage");
-        if (m.updateHost) {
-            await CookieSyncForm.saveForm({regexHost: m.updateHost});
-            await refreshRegexpes();
-        }
-        if (m.updateRegexNames) {
-            await CookieSyncForm.saveForm({regexNames: m.updateRegexNames});
-            await refreshRegexpes();
-        }
+// Keep rapid edits and imports ordered through storage, backup and matcher refresh.
+let configWrites = Promise.resolve();
+function saveConfig(form) {
+    const pending = configWrites.then(async () => {
+        await CookieSyncForm.saveForm(form);
+        await refreshRegexpes();
     });
-});
+    configWrites = pending.catch(() => {});
+    return pending;
+}
 
 function isLocalhostDomain(domain) {
     return (domain || "").replace(/^\./, "").toLowerCase() === "localhost";
@@ -342,6 +338,28 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.updateConfig) {
+        const form = message.updateConfig;
+        if (typeof form.regexHost !== "string" || typeof form.regexNames !== "string") {
+            sendResponse({ok: false});
+            return;
+        }
+        saveConfig({regexHost: form.regexHost, regexNames: form.regexNames})
+            .then(() => sendResponse({ok: true}))
+            .catch(() => sendResponse({ok: false}));
+        return true;
+    }
+    if (message.importConfig) {
+        const form = CookieSyncForm.parseSharePayload(message.importConfig);
+        if (!form) {
+            sendResponse({ok: false});
+            return;
+        }
+        saveConfig(form)
+            .then(() => sendResponse({ok: true}))
+            .catch(() => sendResponse({ok: false}));
+        return true;
+    }
     if (message.manualSync) {
         manualSyncCookies()
             .then((result) => sendResponse(result))
