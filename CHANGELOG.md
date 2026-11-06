@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/wilsonyiyi/cookiesync/compare/v1.6.1...v1.6.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **config:** prevent disconnected port errors when saving rules ([0b6a846](https://github.com/wilsonyiyi/cookiesync/commit/0b6a84693e80ded1941aaa6b2361035dccca18a3))
+
 ## [1.6.1](https://github.com/wilsonyiyi/cookiesync/compare/v1.6.0...v1.6.1) (2026-11-05)
 
 
