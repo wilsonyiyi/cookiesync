@@ -57,7 +57,7 @@ var translations = {
         exportDone: "Config exported",
         importDone: "Config imported",
         importSaveFailed: "Could not save configuration. Please try again.",
-        importReadFailed: "Could not read this file. Please select it again.",
+        importWindowFailed: "Could not open the import window. Please try again.",
         importFailed: "This file is not a CookieSync config.",
         update: "Update",
         checkForUpdate: "Check for updates",
@@ -110,7 +110,7 @@ var translations = {
         exportDone: "配置已导出",
         importDone: "配置已导入",
         importSaveFailed: "配置保存失败，请重试。",
-        importReadFailed: "无法读取文件，请重新选择。",
+        importWindowFailed: "无法打开导入窗口，请重试。",
         importFailed: "这不是有效的 CookieSync 配置文件。",
         update: "更新",
         checkForUpdate: "检查更新",
@@ -444,54 +444,21 @@ function exportConfig() {
     URL.revokeObjectURL(url);
 }
 
-async function importConfigFile(file) {
-    if (!file) return;
-    var button = document.getElementById("importButton");
-    if (button.disabled) return;
-    button.disabled = true;
-    setWarning("");
-    try {
-        var raw;
-        try {
-            raw = await file.text();
-        } catch (error) {
-            setWarning(t("importReadFailed"));
-            return;
-        }
-        var form = CookieSyncForm.parseSharePayload(raw);
-        if (!form) {
-            setWarning(t("importFailed"));
-            return;
-        }
-        // One acknowledged background write survives popup closure and avoids
-        // synthetic input events on a potentially disconnected long-lived port.
-        var response = await chrome.runtime.sendMessage({importConfig: CookieSyncForm.buildSharePayload(form)});
-        if (!response || !response.ok) throw new Error("import-save-failed");
-        fillEditor("regexhost", "hostCount", "hostLineNumbers", form.regexHost);
-        fillEditor("regexnames", "nameCount", "nameLineNumbers", form.regexNames);
-        setSettingsOpen(false);
-        window.PopupToast.show(t("importDone"));
-    } catch (error) {
-        setWarning(t("importSaveFailed"));
-    } finally {
-        button.disabled = false;
-    }
-}
-
 function setupShareActions() {
     var exportButton = document.getElementById("exportButton");
     var importButton = document.getElementById("importButton");
-    var importFile = document.getElementById("importFile");
-    if (!exportButton || !importButton || !importFile) {
-        return;
-    }
+    if (!exportButton || !importButton) return;
     exportButton.addEventListener("click", exportConfig);
-    importButton.addEventListener("click", function() {
-        importFile.click();
-    });
-    importFile.addEventListener("change", function() {
-        importConfigFile(importFile.files && importFile.files[0]);
-        importFile.value = "";
+    importButton.addEventListener("click", async function() {
+        importButton.disabled = true;
+        try {
+            var response = await chrome.runtime.sendMessage({openConfigImport: true, language: currentLanguage});
+            if (!response || !response.ok) throw new Error("import-window-failed");
+        } catch (error) {
+            setWarning(t("importWindowFailed"));
+        } finally {
+            importButton.disabled = false;
+        }
     });
 }
 

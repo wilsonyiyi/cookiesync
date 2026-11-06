@@ -338,6 +338,18 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.openConfigImport) {
+        // The worker creates the window so toolbar-popup teardown cannot cancel it.
+        chrome.windows.create({
+            url: chrome.runtime.getURL("config-import.html") + "?lang=" + (message.language === "zh" ? "zh" : "en"),
+            type: "popup",
+            width: 440,
+            height: 430,
+            focused: true
+        }).then(() => sendResponse({ok: true}))
+            .catch(() => sendResponse({ok: false}));
+        return true;
+    }
     if (message.updateConfig) {
         const form = message.updateConfig;
         if (typeof form.regexHost !== "string" || typeof form.regexNames !== "string") {

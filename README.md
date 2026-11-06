@@ -63,6 +63,10 @@ Click **Sync Now** to copy existing cookies right away. Future changes on matchi
 > - Make sure your local app runs on `http://localhost`, not `127.0.0.1` (browsers treat their cookies separately).
 > - If a cookie isn't syncing, double-check your regex syntax and verify the cookie exists on the source site.
 
+### Import configuration
+
+Open Settings → Import configuration to launch a small standalone window. Choose a CookieSync configuration JSON file, wait for the success message and rule counts, then select Done. Reopen the toolbar popup to use the imported settings. The import window stays open when focus moves away, so file selection does not depend on the toolbar popup remaining alive.
+
 ## Development
 
 All extension files live in [`chrome/`](chrome) with zero build steps. After making changes, click **Reload** on the extension card in `chrome://extensions`.

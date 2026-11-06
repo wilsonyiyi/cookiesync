@@ -176,3 +176,20 @@ test('rapid configuration edits stay ordered and recover after a failed write',a
   assert.deepEqual(responses.map(r=>r.ok),[true,false,true]);
   assert.equal(context.hostsArray[0],'last');
 });
+
+
+test('background owns persistent import window creation and reports failures',async()=>{
+  const {context,messages}=loadServiceWorker(async()=>({}));
+  let options;
+  context.chrome.runtime.getURL=path=>'chrome-extension://test/'+path;
+  context.chrome.windows={create:async value=>{options=value;return {id:3}}};
+  const response=await new Promise(resolve=>{
+    assert.equal(messages[0]({openConfigImport:true,language:'zh'},{},resolve),true);
+  });
+  assert.equal(response.ok,true);
+  assert.equal(options.type,'popup');
+  assert.equal(options.url,'chrome-extension://test/config-import.html?lang=zh');
+  context.chrome.windows.create=async()=>{throw Error('window failure')};
+  const failed=await new Promise(resolve=>messages[0]({openConfigImport:true},{},resolve));
+  assert.equal(failed.ok,false);
+});

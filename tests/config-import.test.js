@@ -16,52 +16,6 @@ function popup(sendMessage) {
     context.setSettingsOpen=v=>calls.closed.push(v);
     return {context,calls,button};
 }
-test('config import waits for acknowledged save before changing UI or reporting success',async()=>{
-    let complete, request;
-    const p=popup(m=>{request=m;return new Promise(resolve=>complete=resolve)});
-    const pending=p.context.importConfigFile({text:async()=>payload});
-    await new Promise(resolve=>setImmediate(resolve));
-    assert.equal(p.button.disabled,true);
-    assert.equal(p.calls.filled.length,0);
-    assert.equal(p.calls.toast.length,0);
-    assert.equal(request.importConfig.regexNames,'^demo$');
-    complete({ok:true});await pending;
-    assert.equal(p.calls.filled.length,2);
-    assert.deepEqual(p.calls.closed,[false]);
-    assert.equal(p.calls.toast.length,1);
-    assert.equal(p.button.disabled,false);
-});
-test('read, parse and storage failures keep settings open with retry feedback',async()=>{
-    for(const mode of ['read','parse','save','disconnect']) {
-        let writes=0;
-        const p=popup(async()=>{writes++;if(mode==='disconnect')throw Error('disconnected');return {ok:false}});
-        await p.context.importConfigFile({text:async()=>{if(mode==='read')throw Error('read');return mode==='parse'?'invalid':payload}});
-        assert.equal(writes,['save','disconnect'].includes(mode)?1:0);
-        assert.equal(p.calls.filled.length,0);
-        assert.equal(p.calls.closed.length,0);
-        assert.equal(p.calls.toast.length,0);
-        assert.ok(p.calls.warnings.at(-1));
-        assert.equal(p.button.disabled,false);
-    }
-});
-
-test('import does not dispatch synthetic edits through a disconnected editor port', async () => {
-    const p=popup(async()=>({ok:true}));
-    const elements = new Map();
-    p.context.document.getElementById = id => {
-        if(id==='importButton')return p.button;
-        if(!elements.has(id))elements.set(id,{value:'',dispatchEvent(){throw Error('Attempting to use a disconnected port object')}});
-        return elements.get(id);
-    };
-    const source=fs.readFileSync('chrome/popup.js','utf8');
-    vm.runInContext(source.slice(source.indexOf('function fillEditor('),source.indexOf('\nfunction exportConfig(')),p.context);
-    p.context.updateEditorMeta=()=>{};
-    await p.context.importConfigFile({text:async()=>payload});
-    assert.equal(elements.get('regexhost').value,'^example\\.com$');
-    assert.equal(elements.get('regexnames').value,'^demo$');
-    assert.equal(p.calls.toast.length,1);
-});
-
 test('manual rule edits handle messaging failure and recover on the next edit', async () => {
     let fail=true, request;
     const p=popup(async message=>{request=message;if(fail)throw Error('disconnected');return {ok:true}});
@@ -77,4 +31,43 @@ test('manual rule edits handle messaging failure and recover on the next edit', 
     await handlers.input();
     assert.equal(request.updateConfig.regexHost,'^demo$');
     assert.equal(p.calls.warnings.at(-1),'');
+});
+
+
+const {createImporter} = require('../chrome/config-import');
+test('persistent import reads and saves without toolbar popup state', async () => {
+    const states=[];
+    let finishRead, finishSave;
+    const importer=createImporter({parse:form.parseSharePayload,save:()=>new Promise(r=>finishSave=r),onState:s=>states.push(s)});
+    const pending=importer({text:()=>new Promise(r=>finishRead=r)});
+    assert.equal(states.at(-1).type,'reading');
+    // The originating toolbar popup need not exist during the file read.
+    finishRead(payload);
+    await new Promise(r=>setImmediate(r));
+    assert.equal(states.at(-1).type,'saving');
+    finishSave({ok:true});await pending;
+    assert.deepEqual(states.at(-1),{type:'success',hosts:1,names:1});
+});
+test('cancel, invalid file, read failure and save failure remain retryable',async()=>{
+    const states=[];
+    let fail=true;
+    const importer=createImporter({parse:form.parseSharePayload,save:async()=>({ok:!fail}),onState:s=>states.push(s)});
+    await importer(undefined);assert.equal(states.length,0);
+    await importer({text:async()=>{throw Error('read')}});assert.equal(states.at(-1).type,'readFailed');
+    await importer({text:async()=>'{bad json'});assert.equal(states.at(-1).type,'invalid');
+    await importer({text:async()=>payload});assert.equal(states.at(-1).type,'saveFailed');
+    fail=false;await importer({text:async()=>payload});assert.equal(states.at(-1).type,'success');
+});
+test('toolbar import delegates window creation without invoking a file picker',async()=>{
+    let request, listener;
+    const p=popup(async message=>{request=message;return {ok:true}});
+    const elements={
+        exportButton:{addEventListener(){}},
+        importButton:{disabled:false,addEventListener(event,fn){listener=fn}}
+    };
+    p.context.document.getElementById=id=>elements[id];
+    p.context.setupShareActions();await listener();
+    assert.equal(request.openConfigImport,true);
+    assert.equal(elements.importButton.disabled,false);
+    assert.equal(p.calls.warnings.length,0);
 });
